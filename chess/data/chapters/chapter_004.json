@@ -1,0 +1,21 @@
+{
+  "id": "stage_004",
+  "name": "Shattered Frontier",
+  "map_id": "map_004",
+  "player_spawns": {
+    "player_001": [1, 11],
+    "player_002": [4, 11],
+    "player_004": [7, 11],
+    "player_005": [10, 11]
+  },
+  "enemy_spawns": {
+    "enemy_001": [1, 0],
+    "enemy_002": [3, 1],
+    "enemy_003": [5, 0],
+    "enemy_004": [7, 1],
+    "enemy_005": [9, 0],
+    "enemy_006": [11, 2]
+  },
+  "win_condition": "defeat_all_enemies",
+  "lose_condition": "all_players_defeated"
+}

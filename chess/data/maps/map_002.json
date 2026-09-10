@@ -1,0 +1,27 @@
+{
+  "id": "map_002",
+  "name": "Flooded Pass",
+  "width": 12,
+  "height": 12,
+  "tiles": [
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "forest", "forest", "plain", "plain", "plain", "plain", "forest", "plain", "plain", "plain"],
+    ["plain", "plain", "forest", "plain", "plain", "mountain", "mountain", "plain", "forest", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "mountain", "plain", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "mountain", "mountain", "plain", "plain", "plain", "plain", "water", "water", "water", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "swamp", "swamp", "plain", "water", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "water", "water", "water", "swamp", "plain", "water", "plain", "mountain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "water", "plain", "plain", "plain", "plain", "mountain", "plain", "plain"],
+    ["plain", "forest", "plain", "plain", "water", "plain", "forest", "forest", "plain", "plain", "plain", "plain"],
+    ["plain", "forest", "plain", "plain", "plain", "plain", "forest", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "swamp", "swamp", "plain", "plain", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"]
+  ],
+  "edges": [
+    {"id": "edge_201", "a": [3, 9], "b": [3, 10], "edge_type": "river"},
+    {"id": "edge_202", "a": [4, 9], "b": [4, 10], "edge_type": "river"},
+    {"id": "edge_203", "a": [6, 7], "b": [6, 8], "edge_type": "river"},
+    {"id": "edge_204", "a": [8, 7], "b": [8, 8], "edge_type": "cliff"},
+    {"id": "edge_205", "a": [9, 8], "b": [9, 9], "edge_type": "cliff"}
+  ]
+}

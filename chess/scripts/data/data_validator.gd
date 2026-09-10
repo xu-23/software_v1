@@ -4,21 +4,47 @@ extends RefCounted
 
 static func validate(data: Dictionary) -> Array[String]:
 	var errors: Array[String] = []
-	for key in ["terrain", "edges", "classes", "players", "enemies", "map", "chapter"]:
+	for key in ["terrain", "edges", "abilities", "classes", "players", "enemies", "map", "chapter"]:
 		if not data.has(key) or data[key].is_empty():
 			errors.append("missing data section: %s" % key)
 	if not errors.is_empty():
 		return errors
+	for override_error in data.get("unit_stat_override_errors", []):
+		errors.append(str(override_error))
 
 	var terrain_ids := _ids(data.terrain.get("terrains", []), "terrain", errors)
+	var terrain_defs := _by_id(data.terrain.get("terrains", []))
 	var edge_ids := _ids(data.edges.get("edges", []), "edge", errors)
+	var ability_ids := _ids(data.abilities.get("abilities", []), "ability", errors)
+	var ability_defs := _by_id(data.abilities.get("abilities", []))
 	var class_ids := _ids(data.classes.get("classes", []), "class", errors)
 	_validate_terrains(data.terrain.get("terrains", []), errors)
 	_validate_edges(data.edges.get("edges", []), errors)
-	_validate_units(data.players.get("units", []), "player", class_ids, errors)
-	_validate_units(data.enemies.get("units", []), "enemy", class_ids, errors)
+	_validate_abilities(data.abilities.get("abilities", []), errors)
+	_validate_units(data.players.get("units", []), "player", class_ids, ability_ids, ability_defs, errors)
+	_validate_units(data.enemies.get("units", []), "enemy", class_ids, ability_ids, ability_defs, errors)
+	_validate_unit_names(data.players.get("units", []) + data.enemies.get("units", []), errors)
 	_validate_map(data.map, terrain_ids, edge_ids, errors)
-	_validate_chapter(data.chapter, data.map, data.players.get("units", []), data.enemies.get("units", []), terrain_ids, errors)
+	_validate_chapter(data.chapter, data.map, data.players.get("units", []), data.enemies.get("units", []), terrain_defs, errors)
+	return errors
+
+
+static func validate_catalog(catalog: Dictionary) -> Array[String]:
+	var errors: Array[String] = []
+	var chapters: Array = catalog.get("chapters", [])
+	if chapters.is_empty():
+		errors.append("chapter catalog must contain at least one chapter")
+		return errors
+	_ids(chapters, "chapter catalog", errors)
+	for entry in chapters:
+		var chapter_id := str(entry.get("id", "<unknown>"))
+		for field in ["name", "difficulty", "map_path", "chapter_path"]:
+			if str(entry.get(field, "")).is_empty():
+				errors.append("catalog entry %s missing field: %s" % [chapter_id, field])
+		for path_field in ["map_path", "chapter_path"]:
+			var path := str(entry.get(path_field, ""))
+			if not path.is_empty() and (not path.begins_with("res://") or not FileAccess.file_exists(path)):
+				errors.append("catalog entry %s has invalid %s: %s" % [chapter_id, path_field, path])
 	return errors
 
 
@@ -35,6 +61,13 @@ static func _ids(items: Array, label: String, errors: Array[String]) -> Dictiona
 	return result
 
 
+static func _by_id(items: Array) -> Dictionary:
+	var result := {}
+	for item in items:
+		result[str(item.get("id", ""))] = item
+	return result
+
+
 static func _validate_terrains(items: Array, errors: Array[String]) -> void:
 	for item in items:
 		var item_id := str(item.get("id", "<unknown>"))
@@ -42,6 +75,11 @@ static func _validate_terrains(items: Array, errors: Array[String]) -> void:
 			errors.append("terrain missing required field: %s" % item_id)
 		if int(item.get("move_cost", -1)) < 0:
 			errors.append("terrain move_cost must be >= 0: %s" % item_id)
+		var move_rule := str(item.get("move_rule", "normal"))
+		if move_rule not in ["normal", "consume_all"]:
+			errors.append("terrain has invalid move_rule: %s" % item_id)
+		if move_rule == "consume_all" and int(item.get("minimum_entry_points", 0)) < 1:
+			errors.append("consume_all terrain needs minimum_entry_points: %s" % item_id)
 
 
 static func _validate_edges(items: Array, errors: Array[String]) -> void:
@@ -54,7 +92,17 @@ static func _validate_edges(items: Array, errors: Array[String]) -> void:
 			errors.append("edge extra_move_cost must be >= 0: %s" % item_id)
 
 
-static func _validate_units(items: Array, expected_team: String, class_ids: Dictionary, errors: Array[String]) -> void:
+static func _validate_abilities(items: Array, errors: Array[String]) -> void:
+	for item in items:
+		var ability_id := str(item.get("id", "<unknown>"))
+		for field in ["name", "special_attribute", "trigger", "description"]:
+			if str(item.get(field, "")).is_empty():
+				errors.append("ability %s missing field: %s" % [ability_id, field])
+		if str(item.get("special_attribute", "")) not in ["wood", "fire", "earth"]:
+			errors.append("ability has invalid special_attribute: %s" % ability_id)
+
+
+static func _validate_units(items: Array, expected_team: String, class_ids: Dictionary, ability_ids: Dictionary, ability_defs: Dictionary, errors: Array[String]) -> void:
 	var seen := {}
 	for item in items:
 		var unit_id := str(item.get("id", ""))
@@ -77,9 +125,44 @@ static func _validate_units(items: Array, expected_team: String, class_ids: Dict
 				errors.append("%s must be >= 0: %s" % [field, unit_id])
 		if not class_ids.has(str(item.get("class_id", ""))):
 			errors.append("unit has unknown class_id: %s" % unit_id)
+		var special_attribute := str(item.get("special_attribute", "none"))
+		var ability_id := str(item.get("ability_id", ""))
+		if special_attribute not in ["none", "wood", "fire", "earth"]:
+			errors.append("unit has invalid special_attribute: %s" % unit_id)
+		if special_attribute == "none" and not ability_id.is_empty():
+			errors.append("unit without special attribute cannot have ability: %s" % unit_id)
+		elif special_attribute != "none":
+			if not ability_ids.has(ability_id):
+				errors.append("unit has unknown ability_id: %s" % unit_id)
+			elif str(ability_defs[ability_id].get("special_attribute", "")) != special_attribute:
+				errors.append("unit ability attribute mismatch: %s" % unit_id)
+
+
+static func _validate_unit_names(items: Array, errors: Array[String]) -> void:
+	var definitions_by_name := {}
+	for item in items:
+		var unit_name := str(item.get("name", ""))
+		var unit_id := str(item.get("id", "<unknown>"))
+		if unit_name.is_empty():
+			errors.append("unit has empty name: %s" % unit_id)
+			continue
+		if not definitions_by_name.has(unit_name):
+			definitions_by_name[unit_name] = item
+			continue
+		var canonical: Dictionary = definitions_by_name[unit_name]
+		var static_fields: Array = canonical.keys()
+		for field in item.keys():
+			if field not in static_fields:
+				static_fields.append(field)
+		static_fields.erase("id")
+		for field in static_fields:
+			if canonical.get(field) != item.get(field):
+				errors.append("unit name %s has conflicting field %s on %s" % [unit_name, field, unit_id])
 
 
 static func _validate_map(map_data: Dictionary, terrain_ids: Dictionary, edge_ids: Dictionary, errors: Array[String]) -> void:
+	for generation_error in map_data.get("generation_errors", []):
+		errors.append(str(generation_error))
 	var width := int(map_data.get("width", 0))
 	var height := int(map_data.get("height", 0))
 	var tiles: Array = map_data.get("tiles", [])
@@ -110,20 +193,28 @@ static func _validate_map(map_data: Dictionary, terrain_ids: Dictionary, edge_id
 			errors.append("unknown edge type on: %s" % edge_id)
 
 
-static func _validate_chapter(chapter: Dictionary, map_data: Dictionary, players: Array, enemies: Array, _terrain_ids: Dictionary, errors: Array[String]) -> void:
+static func _validate_chapter(chapter: Dictionary, map_data: Dictionary, players: Array, enemies: Array, terrain_defs: Dictionary, errors: Array[String]) -> void:
 	if str(chapter.get("map_id", "")) != str(map_data.get("id", "")):
 		errors.append("chapter map_id does not match loaded map")
 	var known_units := {}
+	var player_ids := _by_id(players)
+	var enemy_ids := _by_id(enemies)
 	for unit in players + enemies:
 		known_units[str(unit.get("id", ""))] = true
 	var occupied := {}
 	var width := int(map_data.get("width", 0))
 	var height := int(map_data.get("height", 0))
-	for group in [chapter.get("player_spawns", {}), chapter.get("enemy_spawns", {})]:
+	var spawn_groups := [chapter.get("player_spawns", {}), chapter.get("enemy_spawns", {})]
+	for group_index in range(spawn_groups.size()):
+		var group: Dictionary = spawn_groups[group_index]
 		for unit_id in group:
 			var pos := _array_to_pos(group[unit_id])
 			if not known_units.has(str(unit_id)):
 				errors.append("spawn references unknown unit: %s" % unit_id)
+			elif group_index == 0 and not player_ids.has(str(unit_id)):
+				errors.append("player spawn references non-player unit: %s" % unit_id)
+			elif group_index == 1 and not enemy_ids.has(str(unit_id)):
+				errors.append("enemy spawn references non-enemy unit: %s" % unit_id)
 			if not _inside(pos, width, height):
 				errors.append("spawn outside map: %s" % unit_id)
 			elif occupied.has(pos):
@@ -131,8 +222,13 @@ static func _validate_chapter(chapter: Dictionary, map_data: Dictionary, players
 			else:
 				occupied[pos] = unit_id
 			var tiles: Array = map_data.get("tiles", [])
-			if _inside(pos, width, height) and (pos.y >= tiles.size() or pos.x >= (tiles[pos.y] as Array).size()):
-				errors.append("spawn has no tile: %s" % unit_id)
+			if _inside(pos, width, height):
+				if pos.y >= tiles.size() or pos.x >= (tiles[pos.y] as Array).size():
+					errors.append("spawn has no tile: %s" % unit_id)
+				else:
+					var terrain_id := str(tiles[pos.y][pos.x])
+					if not terrain_defs.has(terrain_id) or not bool(terrain_defs[terrain_id].get("passable", false)):
+						errors.append("spawn is on impassable terrain: %s" % unit_id)
 
 
 static func _array_to_pos(value: Variant) -> Vector2i:

@@ -67,15 +67,22 @@ func get_edge(a: Vector2i, b: Vector2i) -> Dictionary:
 	return edge_defs[edge_type]
 
 
-func get_step_cost(a: Vector2i, b: Vector2i) -> int:
+func get_step_cost(a: Vector2i, b: Vector2i, available_points: int = -1) -> int:
 	if not is_passable(b):
 		return -1
 	var edge := get_edge(a, b)
 	if edge.is_empty() or not bool(edge.get("passable", false)):
 		return -1
 	var terrain := get_terrain(b)
-	var uphill := maxi(get_height(b) - get_height(a), 0)
-	return int(terrain.get("move_cost", 0)) + uphill + int(edge.get("extra_move_cost", 0))
+	var minimum := int(terrain.get("minimum_entry_points", terrain.get("move_cost", 1)))
+	if available_points >= 0 and available_points < minimum:
+		return -1
+	if str(terrain.get("move_rule", "normal")) == "consume_all":
+		return available_points
+	var cost := int(terrain.get("move_cost", 0)) + int(edge.get("extra_move_cost", 0))
+	if available_points >= 0 and cost > available_points:
+		return -1
+	return cost
 
 
 func neighbors(pos: Vector2i) -> Array[Vector2i]:

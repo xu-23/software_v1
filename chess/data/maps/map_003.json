@@ -1,0 +1,34 @@
+{
+  "id": "map_003",
+  "name": "Elemental Crossing",
+  "width": 12,
+  "height": 12,
+  "tiles": [
+    ["plain", "plain", "forest", "forest", "plain", "plain", "hill", "hill", "forest", "forest", "plain", "plain"],
+    ["plain", "forest", "forest", "plain", "plain", "hill", "hill", "plain", "forest", "forest", "plain", "plain"],
+    ["plain", "forest", "plain", "plain", "mountain", "mountain", "plain", "plain", "forest", "plain", "plain", "plain"],
+    ["plain", "forest", "forest", "plain", "plain", "plain", "plain", "hill", "forest", "forest", "plain", "plain"],
+    ["plain", "plain", "forest", "plain", "water", "water", "plain", "hill", "plain", "forest", "plain", "plain"],
+    ["plain", "forest", "forest", "plain", "water", "plain", "plain", "plain", "plain", "forest", "forest", "plain"],
+    ["plain", "forest", "plain", "plain", "water", "plain", "hill", "hill", "plain", "plain", "forest", "plain"],
+    ["plain", "forest", "plain", "plain", "plain", "plain", "hill", "plain", "forest", "forest", "plain", "plain"],
+    ["plain", "forest", "forest", "plain", "plain", "hill", "hill", "plain", "forest", "plain", "plain", "plain"],
+    ["plain", "forest", "plain", "plain", "hill", "hill", "plain", "plain", "forest", "forest", "plain", "plain"],
+    ["plain", "plain", "forest", "plain", "plain", "plain", "plain", "forest", "forest", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"]
+  ],
+  "edges": [
+    {"id": "edge_301", "a": [2, 9], "b": [2, 10], "edge_type": "river"},
+    {"id": "edge_302", "a": [3, 9], "b": [3, 10], "edge_type": "river"},
+    {"id": "edge_303", "a": [4, 10], "b": [4, 11], "edge_type": "river"},
+    {"id": "edge_304", "a": [6, 8], "b": [6, 9], "edge_type": "river"},
+    {"id": "edge_305", "a": [7, 7], "b": [7, 8], "edge_type": "river"},
+    {"id": "edge_306", "a": [8, 6], "b": [8, 7], "edge_type": "river"},
+    {"id": "edge_307", "a": [5, 9], "b": [6, 9], "edge_type": "cliff"},
+    {"id": "edge_308", "a": [6, 8], "b": [7, 8], "edge_type": "cliff"},
+    {"id": "edge_309", "a": [7, 4], "b": [8, 4], "edge_type": "cliff"},
+    {"id": "edge_310", "a": [7, 5], "b": [8, 5], "edge_type": "cliff"},
+    {"id": "edge_311", "a": [9, 6], "b": [10, 6], "edge_type": "cliff"},
+    {"id": "edge_312", "a": [9, 7], "b": [10, 7], "edge_type": "cliff"}
+  ]
+}

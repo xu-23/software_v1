@@ -2,7 +2,9 @@ class_name MovementCalculator
 extends RefCounted
 
 
-static func calculate(unit: BattleUnit, grid: BattleGrid, registry: BattleUnitRegistry) -> Dictionary:
+static func calculate(unit: BattleUnit, grid: BattleGrid, registry: BattleUnitRegistry, budget: int = -1) -> Dictionary:
+	if budget < 0:
+		budget = unit.remaining_move_points
 	var costs := {unit.grid_pos: 0}
 	var parents := {}
 	var open: Array[Vector2i] = [unit.grid_pos]
@@ -13,14 +15,15 @@ static func calculate(unit: BattleUnit, grid: BattleGrid, registry: BattleUnitRe
 			continue
 		closed[current] = true
 		for next in grid.neighbors(current):
-			var step_cost := grid.get_step_cost(current, next)
+			var available := budget - int(costs[current])
+			var step_cost := grid.get_step_cost(current, next, available)
 			if step_cost < 0:
 				continue
 			var occupant := registry.get_at(next)
 			if occupant != null and occupant.team != unit.team:
 				continue
 			var total: int = int(costs[current]) + step_cost
-			if total > unit.move_range:
+			if total > budget:
 				continue
 			if not costs.has(next) or total < int(costs[next]):
 				costs[next] = total

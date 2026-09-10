@@ -3,8 +3,6 @@ extends Control
 
 signal hovered_cell_changed(pos: Vector2i)
 
-const BOARD_SIZE := 10
-
 var controller: BattleController
 var hovered_pos := Vector2i(-1, -1)
 var tile_size := 56.0
@@ -29,8 +27,13 @@ func set_controller(value: BattleController) -> void:
 
 
 func _update_geometry() -> void:
-	tile_size = floor(minf(size.x / BOARD_SIZE, size.y / BOARD_SIZE))
-	board_origin = (size - Vector2(tile_size * BOARD_SIZE, tile_size * BOARD_SIZE)) * 0.5
+	var columns := 10
+	var rows := 10
+	if controller != null and controller.initialized and controller.grid != null:
+		columns = controller.grid.width
+		rows = controller.grid.height
+	tile_size = maxf(floor(minf(size.x / columns, size.y / rows)), 1.0)
+	board_origin = (size - Vector2(tile_size * columns, tile_size * rows)) * 0.5
 	queue_redraw()
 
 
@@ -72,6 +75,10 @@ func _draw_tiles() -> void:
 			draw_rect(rect, Color("#34383d"), false, 1.0)
 			if terrain.id == "forest":
 				_draw_forest(rect)
+			elif terrain.id == "hill":
+				_draw_hill(rect)
+			elif terrain.id == "swamp":
+				_draw_swamp(rect)
 			elif terrain.id == "mountain":
 				_draw_mountain(rect)
 			var height_value := int(terrain.height)
@@ -94,6 +101,27 @@ func _draw_mountain(rect: Rect2) -> void:
 	])
 	draw_colored_polygon(points, Color("#44464a"))
 	draw_polyline(PackedVector2Array([points[0], points[1], points[2]]), Color("#b5b2a9"), 2.0)
+
+
+func _draw_hill(rect: Rect2) -> void:
+	var baseline := rect.position.y + tile_size * 0.76
+	var points := PackedVector2Array([
+		rect.position + Vector2(tile_size * 0.12, tile_size * 0.76),
+		rect.position + Vector2(tile_size * 0.38, tile_size * 0.46),
+		rect.position + Vector2(tile_size * 0.58, tile_size * 0.62),
+		rect.position + Vector2(tile_size * 0.78, tile_size * 0.40),
+		rect.position + Vector2(tile_size * 0.90, tile_size * 0.76)
+	])
+	draw_polyline(points, Color("#e0d5ad"), maxf(1.5, tile_size * 0.04))
+	draw_line(Vector2(points[0].x, baseline), Vector2(points[-1].x, baseline), Color("#6d6858"), 1.5)
+
+
+func _draw_swamp(rect: Rect2) -> void:
+	var line_color := Color("#a7aa72")
+	for y_ratio in [0.36, 0.58, 0.76]:
+		var start := rect.position + Vector2(tile_size * 0.18, tile_size * y_ratio)
+		var end := rect.position + Vector2(tile_size * 0.82, tile_size * y_ratio)
+		draw_line(start, end, line_color, maxf(1.0, tile_size * 0.035))
 
 
 func _draw_highlights() -> void:
@@ -135,7 +163,7 @@ func _draw_path(path: Array, color: Color, width: float) -> void:
 
 
 func get_preview_path() -> Array[Vector2i]:
-	if controller == null or controller.phase != "move":
+	if controller == null or not controller.initialized or controller.phase != "move":
 		return []
 	if hovered_pos not in controller.movement_data.get("reachable", []):
 		return []
@@ -171,12 +199,64 @@ func _draw_units() -> void:
 			draw_arc(center, radius + 4, 0, TAU, 36, Color("#68d5ef"), 4.0)
 		draw_circle(center, radius, Color("#171b20"))
 		draw_circle(center, radius - 2, team_color)
-		var symbol := "M" if unit.unit_type == "melee" else "R"
-		draw_string(fallback_font, center + Vector2(-radius, 6), symbol, HORIZONTAL_ALIGNMENT_CENTER, radius * 2, 17, Color.WHITE)
+		var symbol := UnitIconFormatter.initials(unit.display_name)
+		var symbol_size := 14 if symbol.length() > 1 else 17
+		draw_string(fallback_font, center + Vector2(-radius, 6), symbol, HORIZONTAL_ALIGNMENT_CENTER, radius * 2, symbol_size, Color.WHITE)
+		_draw_class_badge(unit, center, radius)
 		var hp_ratio: float = float(unit.current_hp) / float(unit.max_hp)
 		var bar_rect := Rect2(rect.position + Vector2(7, tile_size - 10), Vector2(tile_size - 14, 5))
 		draw_rect(bar_rect, Color("#382f35"))
 		draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * hp_ratio, bar_rect.size.y)), Color("#59c36a"))
+
+
+func _draw_class_badge(unit: BattleUnit, center: Vector2, unit_radius: float) -> void:
+	var badge_kind := UnitIconFormatter.class_badge(unit.class_id)
+	if badge_kind.is_empty():
+		return
+	var badge_radius := clampf(unit_radius * 0.36, 5.5, 8.0)
+	var badge_center := center + Vector2(unit_radius * 0.72, -unit_radius * 0.72)
+	draw_circle(badge_center, badge_radius + 1.0, Color("#101419"))
+	draw_circle(badge_center, badge_radius, Color("#d7c47c"))
+	var ink := Color("#283036")
+	if badge_kind == "sword":
+		_draw_sword_badge(badge_center, badge_radius, ink)
+	elif badge_kind == "horse":
+		_draw_horse_badge(badge_center, badge_radius, ink)
+	elif badge_kind == "bow":
+		_draw_bow_badge(badge_center, badge_radius, ink)
+		var range_center := center + Vector2(-unit_radius * 0.72, unit_radius * 0.70)
+		var range_radius := clampf(unit_radius * 0.32, 5.0, 7.0)
+		draw_circle(range_center, range_radius + 1.0, Color("#101419"))
+		draw_circle(range_center, range_radius, Color("#edf0ec"))
+		draw_string(fallback_font, range_center + Vector2(-range_radius, 4.0), str(unit.attack_range), HORIZONTAL_ALIGNMENT_CENTER, range_radius * 2.0, 10, Color("#20272c"))
+
+
+func _draw_sword_badge(center: Vector2, radius: float, color: Color) -> void:
+	var start := center + Vector2(-radius * 0.42, radius * 0.45)
+	var end := center + Vector2(radius * 0.42, -radius * 0.45)
+	draw_line(start, end, color, maxf(1.4, radius * 0.22), true)
+	var guard_center := center + Vector2(-radius * 0.18, radius * 0.20)
+	draw_line(guard_center + Vector2(-radius * 0.30, -radius * 0.30), guard_center + Vector2(radius * 0.30, radius * 0.30), color, maxf(1.2, radius * 0.18), true)
+
+
+func _draw_bow_badge(center: Vector2, radius: float, color: Color) -> void:
+	draw_arc(center + Vector2(-radius * 0.10, 0), radius * 0.58, -PI * 0.55, PI * 0.55, 12, color, maxf(1.3, radius * 0.20), true)
+	var top := center + Vector2(radius * 0.03, -radius * 0.58)
+	var bottom := center + Vector2(radius * 0.03, radius * 0.58)
+	draw_line(top, bottom, color, maxf(1.0, radius * 0.15), true)
+
+
+func _draw_horse_badge(center: Vector2, radius: float, color: Color) -> void:
+	var points := PackedVector2Array([
+		center + Vector2(-radius * 0.48, -radius * 0.54),
+		center + Vector2(-radius * 0.08, -radius * 0.32),
+		center + Vector2(radius * 0.30, -radius * 0.50),
+		center + Vector2(radius * 0.50, radius * 0.30),
+		center + Vector2(radius * 0.12, radius * 0.58),
+		center + Vector2(-radius * 0.40, radius * 0.20)
+	])
+	draw_colored_polygon(points, color)
+	draw_circle(center + Vector2(radius * 0.23, -radius * 0.12), maxf(1.0, radius * 0.09), Color("#edf0ec"))
 
 
 func _draw_hover() -> void:
@@ -203,7 +283,9 @@ func _screen_to_grid(screen_pos: Vector2) -> Vector2i:
 
 
 func _set_hovered_pos(pos: Vector2i) -> void:
-	if controller != null and not controller.grid.in_bounds(pos):
+	if controller == null or not controller.initialized or controller.grid == null:
+		pos = Vector2i(-1, -1)
+	elif not controller.grid.in_bounds(pos):
 		pos = Vector2i(-1, -1)
 	if pos == hovered_pos:
 		return
@@ -217,5 +299,6 @@ func _on_mouse_exited() -> void:
 
 
 func _on_controller_changed() -> void:
+	_update_geometry()
 	hovered_cell_changed.emit(hovered_pos)
 	queue_redraw()

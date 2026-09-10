@@ -1,0 +1,7 @@
+{
+  "abilities": [
+    {"id": "renewal", "name": "生生不息", "special_attribute": "wood", "trigger": "first_forest_entry_each_turn", "description": "每回合第一次移动并停在森林时，当前护盾增加2。"},
+    {"id": "burning_camp", "name": "火烧联营", "special_attribute": "fire", "trigger": "attack_forest_target", "description": "攻击位于森林中的单位时，造成双倍伤害。"},
+    {"id": "source_of_all", "name": "万物之源", "special_attribute": "earth", "trigger": "first_hill_entry_each_battle", "description": "每局第一次移动并停在丘陵时，若当前护盾大于0，则护盾翻倍。"}
+  ]
+}
