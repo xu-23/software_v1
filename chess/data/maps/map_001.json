@@ -1,0 +1,24 @@
+{
+  "id": "map_001",
+  "name": "Crossing Heights",
+  "width": 10,
+  "height": 10,
+  "tiles": [
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "forest", "forest", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "forest", "plain", "plain", "mountain", "mountain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "plain", "mountain", "plain", "plain", "plain"],
+    ["plain", "plain", "mountain", "plain", "plain", "plain", "plain", "plain", "forest", "plain"],
+    ["plain", "plain", "mountain", "plain", "plain", "plain", "plain", "plain", "forest", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "mountain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "forest", "plain", "mountain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "forest", "plain", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"]
+  ],
+  "edges": [
+    {"id": "edge_001", "a": [3, 6], "b": [3, 7], "edge_type": "river"},
+    {"id": "edge_002", "a": [4, 6], "b": [4, 7], "edge_type": "river"},
+    {"id": "edge_003", "a": [5, 3], "b": [5, 4], "edge_type": "cliff"},
+    {"id": "edge_004", "a": [6, 3], "b": [6, 4], "edge_type": "cliff"}
+  ]
+}

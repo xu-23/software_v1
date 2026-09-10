@@ -1,0 +1,16 @@
+{
+  "id": "stage_001",
+  "name": "First Contact",
+  "map_id": "map_001",
+  "player_spawns": {
+    "player_001": [1, 8],
+    "player_002": [2, 8]
+  },
+  "enemy_spawns": {
+    "enemy_001": [7, 1],
+    "enemy_002": [8, 2],
+    "enemy_003": [7, 4]
+  },
+  "win_condition": "defeat_all_enemies",
+  "lose_condition": "all_players_defeated"
+}

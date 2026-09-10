@@ -1,0 +1,7 @@
+{
+  "classes": [
+    {"id": "soldier", "name": "Soldier", "unit_type": "melee", "description": "Front-line melee unit"},
+    {"id": "archer", "name": "Archer", "unit_type": "ranged", "description": "Height-sensitive ranged unit"},
+    {"id": "raider", "name": "Raider", "unit_type": "melee", "description": "Mobile enemy melee unit"}
+  ]
+}

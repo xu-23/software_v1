@@ -1,0 +1,7 @@
+{
+  "units": [
+    {"id": "enemy_001", "name": "Raider A", "team": "enemy", "unit_type": "melee", "class_id": "raider", "max_hp": 10, "shield": 3, "attack": 4, "move_range": 3, "attack_range": 1, "true_damage": false, "sprite": ""},
+    {"id": "enemy_002", "name": "Raider B", "team": "enemy", "unit_type": "melee", "class_id": "raider", "max_hp": 10, "shield": 3, "attack": 4, "move_range": 3, "attack_range": 1, "true_damage": false, "sprite": ""},
+    {"id": "enemy_003", "name": "Marksman", "team": "enemy", "unit_type": "ranged", "class_id": "archer", "max_hp": 12, "shield": 2, "attack": 3, "move_range": 3, "attack_range": 2, "true_damage": false, "sprite": ""}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "terrains": [
+    {"id": "plain", "name": "Plain", "passable": true, "move_cost": 1, "height": 0, "color": "#cbc8b9"},
+    {"id": "forest", "name": "Forest", "passable": true, "move_cost": 2, "height": 1, "color": "#65876a"},
+    {"id": "water", "name": "Water", "passable": false, "move_cost": 0, "height": 0, "color": "#477fa3"},
+    {"id": "mountain", "name": "Mountain", "passable": false, "move_cost": 0, "height": 10, "color": "#67676b"}
+  ]
+}

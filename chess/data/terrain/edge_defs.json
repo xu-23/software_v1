@@ -1,0 +1,7 @@
+{
+  "edges": [
+    {"id": "normal", "name": "Normal", "passable": true, "extra_move_cost": 0, "blocks_melee": false, "blocks_ranged": false},
+    {"id": "river", "name": "River", "passable": true, "extra_move_cost": 1, "blocks_melee": false, "blocks_ranged": false},
+    {"id": "cliff", "name": "Cliff", "passable": false, "extra_move_cost": 0, "blocks_melee": true, "blocks_ranged": false}
+  ]
+}
