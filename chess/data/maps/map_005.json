@@ -1,0 +1,32 @@
+{
+  "id": "map_005",
+  "name": "Orchard Ambush",
+  "width": 10,
+  "height": 10,
+  "tiles": [
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"],
+    ["plain", "forest", "forest", "plain", "hill", "hill", "plain", "forest", "plain", "plain"],
+    ["plain", "forest", "mountain", "plain", "hill", "plain", "plain", "forest", "plain", "plain"],
+    ["plain", "plain", "mountain", "plain", "plain", "plain", "water", "water", "plain", "plain"],
+    ["plain", "forest", "plain", "plain", "swamp", "swamp", "water", "plain", "hill", "plain"],
+    ["plain", "forest", "plain", "water", "water", "swamp", "plain", "plain", "hill", "plain"],
+    ["plain", "plain", "plain", "water", "plain", "plain", "plain", "forest", "forest", "plain"],
+    ["plain", "hill", "hill", "plain", "plain", "mountain", "plain", "forest", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "mountain", "plain", "plain", "plain", "plain"],
+    ["plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain", "plain"]
+  ],
+  "edges": [
+    {"id": "edge_501", "a": [3, 7], "b": [3, 8], "edge_type": "river"},
+    {"id": "edge_502", "a": [4, 7], "b": [4, 8], "edge_type": "river"},
+    {"id": "edge_503", "a": [6, 6], "b": [6, 7], "edge_type": "river"},
+    {"id": "edge_504", "a": [7, 3], "b": [8, 3], "edge_type": "cliff"},
+    {"id": "edge_505", "a": [8, 4], "b": [9, 4], "edge_type": "cliff"}
+  ],
+  "opportunities": [
+    {"id": "opp_501", "opportunity_id": "forest_fruit", "position": [1, 4]},
+    {"id": "opp_502", "opportunity_id": "forest_fruit", "position": [7, 6]},
+    {"id": "opp_503", "opportunity_id": "hill_iron", "position": [2, 7]},
+    {"id": "opp_504", "opportunity_id": "swamp_mire", "position": [5, 5]},
+    {"id": "opp_505", "opportunity_id": "plain_supplies", "position": [4, 6]}
+  ]
+}

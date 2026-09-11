@@ -40,6 +40,7 @@ static func load_game_data(chapter_id: String = "stage_001", supplied_overrides:
 	var data := {
 		"terrain": load_json("res://data/terrain/terrain_defs.json"),
 		"edges": load_json("res://data/terrain/edge_defs.json"),
+		"opportunities": load_json("res://data/opportunities/opportunity_defs.json"),
 		"abilities": load_json("res://data/abilities/ability_defs.json"),
 		"classes": load_json("res://data/classes/class_defs.json"),
 		"players": load_json("res://data/units/player_units.json"),

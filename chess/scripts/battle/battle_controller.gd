@@ -26,6 +26,7 @@ var current_chapter_id := ""
 var current_chapter_name := ""
 var menu_open := false
 var ability_defs: Dictionary = {}
+var opportunity_state: BattleOpportunityState
 
 
 func _ready() -> void:
@@ -47,6 +48,7 @@ func start_new_battle(chapter_id: String = "stage_001", stat_overrides: Variant 
 	enemy_turn_running = false
 	menu_open = false
 	ability_defs = {}
+	opportunity_state = null
 	current_chapter_id = chapter_id
 
 	var data := GameDataLoader.load_game_data(chapter_id, stat_overrides)
@@ -60,6 +62,8 @@ func start_new_battle(chapter_id: String = "stage_001", stat_overrides: Variant 
 
 	grid = BattleGrid.new()
 	grid.setup(data.map, data.terrain, data.edges)
+	opportunity_state = BattleOpportunityState.new()
+	opportunity_state.setup(data.opportunities, data.map)
 	for ability in data.abilities.get("abilities", []):
 		ability_defs[str(ability.id)] = ability
 	current_chapter_name = str(data.chapter.name)
@@ -133,13 +137,16 @@ func click_at(pos: Vector2i) -> bool:
 		unit.has_moved = true
 		unit.remaining_move_points = maxi(unit.remaining_move_points - segment_cost, 0)
 		unit.move_spent_this_turn += segment_cost
+		var opportunity_events := opportunity_state.apply_path(unit, path)
 		var ability_event := SpecialAbilityResolver.apply_terrain_entry(unit, grid.get_terrain_id(pos))
-		last_action = {"type": "move", "unit_id": unit.id, "from": origin, "to": pos, "path": path, "cost": segment_cost, "remaining": unit.remaining_move_points, "ability": ability_event}
+		last_action = {"type": "move", "unit_id": unit.id, "from": origin, "to": pos, "path": path, "cost": segment_cost, "remaining": unit.remaining_move_points, "opportunities": opportunity_events, "ability": ability_event}
 		phase = "move" if unit.remaining_move_points > 0 else "action"
 		movement_data = MovementCalculator.calculate(unit, grid, registry) if unit.remaining_move_points > 0 else {}
 		var move_message := "%s 移动 %s -> %s，消耗 %d，剩余 %d" % [UnitNameLocalizer.localized(unit.display_name), _pos_text(origin), _pos_text(pos), segment_cost, unit.remaining_move_points]
 		if not ability_event.is_empty():
 			move_message += " | " + _ability_text(ability_event)
+		for event in opportunity_events:
+			_set_message(_opportunity_text(unit, event))
 		_set_message(move_message)
 		state_changed.emit()
 		return true
@@ -281,7 +288,7 @@ func _run_enemy_turn(generation: int) -> void:
 	for enemy in registry.living("enemy"):
 		if generation != battle_generation or not result.is_empty():
 			break
-		var events := EnemyAI.take_turn(enemy, grid, registry)
+		var events := EnemyAI.take_turn(enemy, grid, registry, opportunity_state)
 		for event in events:
 			if event.type == "attack":
 				var target := registry.get_unit(str(event.result.target_id))
@@ -302,9 +309,12 @@ func _run_enemy_turn(generation: int) -> void:
 					"to": event.to,
 					"path": event.get("path", [event.from, event.to]),
 					"cost": event.get("cost", 0),
-					"remaining": event.get("remaining", 0)
+					"remaining": event.get("remaining", 0),
+					"opportunities": event.get("opportunities", [])
 				}
 				_set_message("%s 移动至 %s，消耗 %d" % [UnitNameLocalizer.localized(enemy.display_name), _pos_text(event.to), int(event.get("cost", 0))])
+			elif event.type == "opportunity":
+				_set_message(_opportunity_text(enemy, event))
 			elif event.type == "ability":
 				_set_message("%s | %s" % [UnitNameLocalizer.localized(enemy.display_name), _ability_text(event)])
 			elif event.type == "wait":
@@ -385,6 +395,11 @@ static func _combat_text(attacker: BattleUnit, target: BattleUnit, combat: Dicti
 static func _ability_text(event: Dictionary) -> String:
 	var ability_name := str(event.get("ability_name", event.get("ability_id", "Ability")))
 	return "%s：护盾 %d -> %d" % [ability_name, int(event.get("shield_before", 0)), int(event.get("shield_after", 0))]
+
+
+static func _opportunity_text(unit: BattleUnit, event: Dictionary) -> String:
+	var stat_name := "HP" if str(event.get("effect", "")) == "hp" else "护盾"
+	return "%s 触发机遇「%s」：%s %d -> %d" % [UnitNameLocalizer.localized(unit.display_name), str(event.get("opportunity_name", "")), stat_name, int(event.get("value_before", 0)), int(event.get("value_after", 0))]
 
 
 static func _pos_text(pos: Vector2i) -> String:

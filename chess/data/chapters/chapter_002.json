@@ -3,16 +3,18 @@
   "name": "Flooded Pass",
   "map_id": "map_002",
   "player_spawns": {
-    "player_001": [1, 10],
-    "player_002": [2, 11],
-    "player_003": [6, 9]
+    "player_003": [6, 9],
+    "player_004": [1, 10],
+    "player_007": [2, 11]
   },
   "enemy_spawns": {
-    "enemy_001": [9, 1],
-    "enemy_002": [10, 2],
+    "enemy_002": [9, 1],
     "enemy_003": [10, 4],
-    "enemy_004": [7, 2],
-    "enemy_005": [8, 1]
+    "enemy_005": [8, 1],
+    "enemy_006": [10, 2],
+    "enemy_007": [7, 2],
+    "enemy_008": [10, 1],
+    "enemy_010": [11, 3]
   },
   "win_condition": "defeat_all_enemies",
   "lose_condition": "all_players_defeated"

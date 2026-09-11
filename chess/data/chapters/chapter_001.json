@@ -4,12 +4,16 @@
   "map_id": "map_001",
   "player_spawns": {
     "player_001": [1, 8],
-    "player_002": [2, 8]
+    "player_002": [2, 8],
+    "player_006": [4, 8]
   },
   "enemy_spawns": {
     "enemy_001": [7, 1],
-    "enemy_002": [8, 2],
-    "enemy_003": [7, 4]
+    "enemy_003": [7, 4],
+    "enemy_005": [8, 2],
+    "enemy_007": [8, 4],
+    "enemy_008": [6, 1],
+    "enemy_009": [9, 2]
   },
   "win_condition": "defeat_all_enemies",
   "lose_condition": "all_players_defeated"

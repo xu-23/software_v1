@@ -4,6 +4,7 @@ extends RefCounted
 var id: String
 var display_name: String
 var team: String
+var rank: String
 var unit_type: String
 var class_id: String
 var max_hp: int
@@ -35,6 +36,7 @@ static func from_data(data: Dictionary, spawn: Vector2i) -> BattleUnit:
 	unit.id = str(data.id)
 	unit.display_name = str(data.name)
 	unit.team = str(data.team)
+	unit.rank = str(data.get("rank", ""))
 	unit.unit_type = str(data.unit_type)
 	unit.class_id = str(data.class_id)
 	unit.max_hp = int(data.max_hp)
@@ -76,6 +78,7 @@ func snapshot() -> Dictionary:
 		"id": id,
 		"name": display_name,
 		"team": team,
+		"rank": rank,
 		"unit_type": unit_type,
 		"class_id": class_id,
 		"max_hp": max_hp,

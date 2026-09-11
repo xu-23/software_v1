@@ -20,5 +20,10 @@
     {"id": "edge_002", "a": [4, 6], "b": [4, 7], "edge_type": "river"},
     {"id": "edge_003", "a": [5, 3], "b": [5, 4], "edge_type": "cliff"},
     {"id": "edge_004", "a": [6, 3], "b": [6, 4], "edge_type": "cliff"}
+  ],
+  "opportunities": [
+    {"id": "opp_101", "opportunity_id": "forest_fruit", "position": [3, 1]},
+    {"id": "opp_102", "opportunity_id": "forest_fruit", "position": [8, 5]},
+    {"id": "opp_103", "opportunity_id": "plain_supplies", "position": [4, 7]}
   ]
 }

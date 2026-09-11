@@ -1,4 +1,4 @@
-# v0.1.4 数据格式
+# v0.1.5 数据格式
 
 所有配置文件使用 UTF-8 JSON，运行时路径以 `res://data/` 为根。
 
@@ -26,6 +26,8 @@
 ```
 
 `id` 标识实例定义，`name` 是英文模板一致性键。同名定义允许不同 ID，但静态字段必须一致。近战射程必须为 1，能力引用必须存在且属性一致。
+
+敌方定义还必须包含 `rank`，值为 `normal` 或 `elite`。玩家定义不需要该字段；级别不改变战斗公式。
 
 JSON 中不增加中文名称字段。百科和战斗信息通过 `UnitNameLocalizer` 将英文 `name` 转为中文显示名称；棋盘缩写和数值覆盖键仍使用英文标准名称。未知名称回退显示原值。
 
@@ -69,9 +71,35 @@ JSON 中不增加中文名称字段。百科和战斗信息通过 `UnitNameLocal
 
 能力必须具有唯一 `id`、`name`、`special_attribute`、`trigger` 和中文 `description`。无特殊属性的单位使用 `none` 且 `ability_id` 为空。
 
+## 机遇定义与地图实例
+
+公共定义文件：`data/opportunities/opportunity_defs.json`
+
+```json
+{
+  "id": "forest_fruit",
+  "name": "水果",
+  "terrain_ids": ["forest"],
+  "effect": "hp",
+  "amount": 1
+}
+```
+
+`effect` 只允许 `hp` 或 `shield`，`amount` 必须为正整数，`terrain_ids` 中的地形必须存在。
+
+地图根对象可包含：
+
+```json
+"opportunities": [
+  {"id": "opp_001", "opportunity_id": "forest_fruit", "position": [3, 4]}
+]
+```
+
+实例 ID 和坐标在单张地图内唯一。坐标必须位于可通行格，底层地形必须被定义允许，且不得与出生点重叠。未声明数组等价于没有机遇。运行时会复制这些实例并在触发后移除，不修改 JSON。
+
 ## 静态地图
 
-`map_001.json` 至 `map_003.json` 直接保存：
+`map_001.json` 至 `map_003.json`、`map_005.json` 和 `map_006.json` 直接保存：
 
 - `width`、`height`：地图尺寸。
 - `tiles`：按 y 行、x 列存储的二维地形 ID。
@@ -96,10 +124,10 @@ JSON 中不增加中文名称字段。百科和战斗信息通过 `UnitNameLocal
 }
 ```
 
-加载器识别 `generation` 后调用 `ProceduralMapGenerator`，输出与静态地图相同的 `tiles` 和 `edges`。相同种子生成相同结果；受保护格保持 Plain，锚点在不可通行地形和 Cliff 放置后仍须互相连通。生成配额不足会成为数据校验错误。
+加载器识别 `generation` 后调用 `ProceduralMapGenerator`，输出与静态地图相同的 `tiles`、`edges` 和显式 `opportunities`。相同种子生成相同结果；受保护格保持 Plain，锚点在不可通行地形和 Cliff 放置后仍须互相连通。生成配额不足会成为数据校验错误。
 
 ## 关卡与目录
 
 `chapter_*.json` 通过 `map_id` 引用地图，并用单位 ID 到 `[x, y]` 的对象定义双方出生点。出生点必须位于可通行地形、不能重叠且阵营引用正确。
 
-`chapter_catalog.json` 提供关卡选择信息与地图/关卡路径。v0.1.4 包含 `stage_001` 至 `stage_004`；第四关的目录条目仍指向生成规格 JSON，无需 UI 特判。
+`chapter_catalog.json` 提供关卡选择信息与地图/关卡路径。v0.1.5 包含 `stage_001` 至 `stage_006`；每关恰好 3 名玩家、6 至 9 名敌人并至少有 1 名精英。第四关目录仍指向生成规格 JSON，无需 UI 特判。

@@ -1,0 +1,8 @@
+{
+  "opportunities": [
+    {"id": "forest_fruit", "name": "水果", "terrain_ids": ["forest"], "effect": "hp", "amount": 1},
+    {"id": "hill_iron", "name": "精铁", "terrain_ids": ["hill"], "effect": "shield", "amount": 1},
+    {"id": "swamp_mire", "name": "泥沼", "terrain_ids": ["swamp"], "effect": "shield", "amount": 1},
+    {"id": "plain_supplies", "name": "补给", "terrain_ids": ["plain"], "effect": "hp", "amount": 2}
+  ]
+}

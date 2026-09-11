@@ -37,8 +37,12 @@ func _run_tests() -> void:
 	_test_ranged_ai_high_ground()
 	_test_unit_icon_formatter()
 	_test_unit_name_localization()
+	_test_v015_unit_roster_and_balance()
 	_test_unit_stat_overrides()
 	_test_stage_four_generation()
+	_test_six_stage_deployments()
+	_test_opportunity_state_and_validation()
+	_test_enemy_opportunity_integration()
 	_test_ai_obstacle_routing()
 	_test_stage_three_sentry_route()
 	_test_menu_and_stop()
@@ -57,7 +61,7 @@ func _run_tests() -> void:
 func _test_controller_start_and_select() -> void:
 	var controller := BattleController.new()
 	controller.start_new_battle()
-	_expect("T001 battle starts", controller.initialized and controller.registry.living("player").size() == 2 and controller.registry.living("enemy").size() == 3)
+	_expect("T001 battle starts", controller.initialized and controller.registry.living("player").size() == 3 and controller.registry.living("enemy").size() == 6)
 	_expect("T001 player selection", controller.select_at(Vector2i(1, 8)) and controller.selected_unit_id == "player_001")
 	_expect("T001 movement range shown", not controller.movement_data.get("reachable", []).is_empty())
 	controller.free()
@@ -155,6 +159,8 @@ func _test_turn_integration() -> void:
 	controller.wait_selected()
 	controller.select_at(Vector2i(2, 8))
 	controller.wait_selected()
+	controller.select_at(Vector2i(4, 8))
+	controller.wait_selected()
 	_expect("T018 full turn returns control to player", controller.round_number == 2 and controller.current_team == "player")
 	_expect("T018 player action flags reset", not controller.registry.get_unit("player_001").has_acted and not controller.registry.get_unit("player_002").has_acted)
 	_expect("T027 zero-delay turn finishes synchronously", not controller.enemy_turn_running)
@@ -164,8 +170,9 @@ func _test_turn_integration() -> void:
 func _test_result_integration() -> void:
 	var victory_controller := BattleController.new()
 	victory_controller.start_new_battle()
-	victory_controller.registry.get_unit("enemy_002").is_dead = true
-	victory_controller.registry.get_unit("enemy_003").is_dead = true
+	for enemy in victory_controller.registry.living("enemy"):
+		if enemy.id != "enemy_001":
+			enemy.is_dead = true
 	var last_enemy := victory_controller.registry.get_unit("enemy_001")
 	last_enemy.grid_pos = Vector2i(1, 7)
 	last_enemy.current_shield = 0
@@ -178,7 +185,9 @@ func _test_result_integration() -> void:
 
 	var defeat_controller := BattleController.new()
 	defeat_controller.start_new_battle()
-	defeat_controller.registry.get_unit("player_002").is_dead = true
+	for player in defeat_controller.registry.living("player"):
+		if player.id != "player_001":
+			player.is_dead = true
 	var last_player := defeat_controller.registry.get_unit("player_001")
 	last_player.current_shield = 0
 	last_player.current_hp = 3
@@ -265,17 +274,17 @@ func _test_enemy_input_lock() -> void:
 
 func _test_chapter_system() -> void:
 	var catalog := GameDataLoader.load_chapter_catalog()
-	_expect("T028 catalog contains four levels", catalog.get("chapters", []).size() == 4)
+	_expect("T028 catalog contains six levels", catalog.get("chapters", []).size() == 6)
 	_expect("T028 catalog IDs are stable", catalog.chapters[0].id == "stage_001" and catalog.chapters[1].id == "stage_002")
 	var stage_one := BattleController.new()
 	stage_one.start_new_battle("stage_001")
-	_expect("T029 stage one keeps 2 versus 3", stage_one.registry.living("player").size() == 2 and stage_one.registry.living("enemy").size() == 3)
-	_expect("T029 new units do not leak into stage one", stage_one.registry.get_unit("player_003") == null and stage_one.registry.get_unit("enemy_005") == null)
+	_expect("T029 stage one uses 3 versus 6", stage_one.registry.living("player").size() == 3 and stage_one.registry.living("enemy").size() == 6)
+	_expect("T029 stage one includes a new ally and elite", stage_one.registry.get_unit("player_006") != null and stage_one.registry.get_unit("enemy_005") != null)
 	stage_one.free()
 	var stage_two := BattleController.new()
 	_expect("T030 stage two starts", stage_two.start_new_battle("stage_002"))
 	_expect("T030 stage two is 12 by 12", stage_two.grid.width == 12 and stage_two.grid.height == 12)
-	_expect("T030 stage two has 3 versus 5", stage_two.registry.living("player").size() == 3 and stage_two.registry.living("enemy").size() == 5)
+	_expect("T030 stage two has 3 versus 7", stage_two.registry.living("player").size() == 3 and stage_two.registry.living("enemy").size() == 7)
 	_expect("T030 stage two includes Ranger and Sentry", stage_two.registry.get_unit("player_003") != null and stage_two.registry.get_unit("enemy_005") != null)
 	_expect("T030 stage two includes swamp and water", stage_two.grid.get_terrain_id(Vector2i(4, 5)) == "swamp" and stage_two.grid.get_terrain_id(Vector2i(7, 5)) == "water")
 	stage_two.free()
@@ -285,19 +294,19 @@ func _test_remaining_movement() -> void:
 	var controller := BattleController.new()
 	controller.start_new_battle()
 	var unit := controller.registry.get_unit("player_001")
-	_expect("T031 movement points initialize", unit.remaining_move_points == 4 and unit.move_spent_this_turn == 0)
+	_expect("T031 movement points initialize", unit.remaining_move_points == 3 and unit.move_spent_this_turn == 0)
 	controller.select_at(Vector2i(1, 8))
 	_expect("T031 first direct move succeeds", controller.click_at(Vector2i(1, 7)))
-	_expect("T031 first segment is deducted", unit.remaining_move_points == 3 and unit.move_spent_this_turn == 1)
+	_expect("T031 first segment is deducted", unit.remaining_move_points == 2 and unit.move_spent_this_turn == 1)
 	_expect("T031 selection remains in move mode", controller.selected_unit_id == unit.id and controller.phase == "move")
 	_expect("T031 second direct move succeeds", controller.click_at(Vector2i(1, 6)))
-	_expect("T031 movement accumulates", unit.remaining_move_points == 2 and unit.move_spent_this_turn == 2)
+	_expect("T031 movement accumulates", unit.remaining_move_points == 1 and unit.move_spent_this_turn == 2)
 	controller.request_attack()
 	_expect("T031 Move command returns from attack mode", controller.request_move() and controller.phase == "move")
 	controller.wait_selected()
 	_expect("T031 wait discards remaining movement", unit.remaining_move_points == 0 and unit.has_acted)
 	unit.reset_turn()
-	_expect("T031 turn reset restores movement", unit.remaining_move_points == 4 and unit.move_spent_this_turn == 0 and not unit.has_moved)
+	_expect("T031 turn reset restores movement", unit.remaining_move_points == 3 and unit.move_spent_this_turn == 0 and not unit.has_moved)
 	controller.free()
 
 
@@ -358,9 +367,61 @@ func _test_unit_name_localization() -> void:
 	_expect("T066 Marksman name is localized", UnitNameLocalizer.localized("Marksman") == "神射手")
 	_expect("T066 Sentry name is localized", UnitNameLocalizer.localized("Sentry") == "哨兵")
 	_expect("T066 Flamecaster name is localized", UnitNameLocalizer.localized("Flamecaster") == "火焰术士")
+	_expect("T067 Bulwark name is localized", UnitNameLocalizer.localized("Bulwark") == "重盾卫士")
+	_expect("T067 Duelist name is localized", UnitNameLocalizer.localized("Duelist") == "决斗者")
+	_expect("T067 Longbow name is localized", UnitNameLocalizer.localized("Longbow") == "长弓手")
+	_expect("T067 Skirmisher name is localized", UnitNameLocalizer.localized("Skirmisher") == "游击兵")
+	_expect("T067 Shield Guard name is localized", UnitNameLocalizer.localized("Shield Guard") == "盾牌卫兵")
+	_expect("T067 Hunter name is localized", UnitNameLocalizer.localized("Hunter") == "猎手")
+	_expect("T067 Ironclad name is localized", UnitNameLocalizer.localized("Ironclad") == "铁甲统领")
+	_expect("T067 Executioner name is localized", UnitNameLocalizer.localized("Executioner") == "行刑官")
+	_expect("T067 Siege Archer name is localized", UnitNameLocalizer.localized("Siege Archer") == "攻城弓手")
 	_expect("T066 unknown unit name falls back", UnitNameLocalizer.localized("Future Unit") == "Future Unit")
 	var raw_data := GameDataLoader.load_json("res://data/units/player_units.json")
 	_expect("T066 source names and board initials stay English-based", raw_data.units[0].name == "Vanguard" and UnitIconFormatter.initials(str(raw_data.units[3].name)) == "VG")
+
+
+func _test_v015_unit_roster_and_balance() -> void:
+	var data := GameDataLoader.load_game_data("stage_001")
+	var allies := UnitDefinitionCatalog.unique_by_name(data.players.units)
+	var enemies := UnitDefinitionCatalog.unique_by_name(data.enemies.units)
+	_expect("T068 roster has eight allied designs", allies.size() == 8)
+	_expect("T068 roster has ten enemy designs", enemies.size() == 10)
+	_expect("T068 three new allied designs exist", _definitions_contain(allies, "Bulwark") and _definitions_contain(allies, "Duelist") and _definitions_contain(allies, "Longbow"))
+	_expect("T068 six new enemy designs exist", _definitions_contain(enemies, "Skirmisher") and _definitions_contain(enemies, "Shield Guard") and _definitions_contain(enemies, "Hunter") and _definitions_contain(enemies, "Ironclad") and _definitions_contain(enemies, "Executioner") and _definitions_contain(enemies, "Siege Archer"))
+	var ranks_valid := true
+	var normal_score := 0.0
+	var normal_count := 0
+	var elite_score := 0.0
+	var elite_count := 0
+	for definition in enemies:
+		var rank := str(definition.get("rank", ""))
+		ranks_valid = ranks_valid and rank in ["normal", "elite"]
+		if rank == "normal":
+			normal_score += _combat_score(definition)
+			normal_count += 1
+		else:
+			elite_score += _combat_score(definition)
+			elite_count += 1
+	var allied_score := 0.0
+	for definition in allies:
+		allied_score += _combat_score(definition)
+	var allied_average: float = allied_score / allies.size()
+	var normal_ratio: float = normal_score / normal_count / allied_average
+	var elite_ratio: float = elite_score / elite_count / allied_average
+	_expect("T068 every enemy has a valid rank", ranks_valid and normal_count == 5 and elite_count == 5)
+	_expect("T068 normal enemy strength is near two thirds", normal_ratio >= 0.58 and normal_ratio <= 0.75, str(normal_ratio))
+	_expect("T068 elite enemy strength is near five thirds", elite_ratio >= 1.55 and elite_ratio <= 1.78, str(elite_ratio))
+	var bulwark := _definition_by_name(allies, "Bulwark")
+	var duelist := _definition_by_name(allies, "Duelist")
+	var longbow := _definition_by_name(allies, "Longbow")
+	_expect("T068 new allies have distinct extreme strengths", int(bulwark.shield) == 10 and int(bulwark.attack) == 2 and bool(duelist.true_damage) and int(duelist.shield) == 0 and int(longbow.attack_range) == 4 and int(longbow.move_range) == 2)
+	var ironclad := _definition_by_name(enemies, "Ironclad")
+	var executioner := _definition_by_name(enemies, "Executioner")
+	var siege_archer := _definition_by_name(enemies, "Siege Archer")
+	_expect("T068 new elites have tank striker and siege roles", int(ironclad.shield) == 16 and bool(executioner.true_damage) and int(siege_archer.attack_range) == 4)
+	var runtime_enemy := BattleUnit.from_data(ironclad, Vector2i.ZERO)
+	_expect("T068 enemy rank enters runtime snapshots", runtime_enemy.rank == "elite" and runtime_enemy.snapshot().rank == "elite")
 
 
 func _test_unit_stat_overrides() -> void:
@@ -377,7 +438,7 @@ func _test_unit_stat_overrides() -> void:
 	var vanguard: Dictionary = changed.players.units[0]
 	_expect("T058 all four mutable stats are applied", int(vanguard.max_hp) == 22 and int(vanguard.shield) == 8 and int(vanguard.attack) == 7 and int(vanguard.move_range) == 5)
 	_expect("T058 fixed stats stay unchanged", vanguard.name == "Vanguard" and vanguard.team == "player" and vanguard.class_id == "soldier" and int(vanguard.attack_range) == 1)
-	_expect("T058 source definitions remain unchanged", int(original.players.units[0].max_hp) == 18 and int(original.players.units[0].attack) == 6)
+	_expect("T058 source definitions remain unchanged", int(original.players.units[0].max_hp) == 20 and int(original.players.units[0].attack) == 6)
 	var changed_raiders := 0
 	for definition in changed.enemies.units:
 		if str(definition.name) == "Raider" and int(definition.attack) == 6:
@@ -435,11 +496,117 @@ func _test_stage_four_generation() -> void:
 	var controller := BattleController.new()
 	var started := controller.start_new_battle("stage_004")
 	_expect("T063 stage four starts", started)
-	_expect("T063 stage four deploys 4 versus 6", controller.registry.living("player").size() == 4 and controller.registry.living("enemy").size() == 6)
+	_expect("T063 stage four deploys 3 versus 8", controller.registry.living("player").size() == 3 and controller.registry.living("enemy").size() == 8)
 	var first_tiles: Array = data.map.tiles.duplicate(true)
 	controller.start_new_battle("stage_004")
 	_expect("T063 stage four restart reproduces its map", controller.grid.tiles == first_tiles)
 	controller.free()
+
+
+func _test_six_stage_deployments() -> void:
+	var catalog := GameDataLoader.load_chapter_catalog()
+	_expect("T069 catalog ends at stage six", catalog.chapters.size() == 6 and catalog.chapters[5].id == "stage_006")
+	var expected_sizes := [Vector2i(10, 10), Vector2i(12, 12), Vector2i(12, 12), Vector2i(12, 12), Vector2i(10, 10), Vector2i(14, 12)]
+	var allied_names := {}
+	var enemy_names := {}
+	for index in range(6):
+		var stage_id := "stage_%03d" % (index + 1)
+		var data := GameDataLoader.load_game_data(stage_id)
+		var errors := GameDataValidator.validate(data)
+		_expect("T069 %s data validates" % stage_id, errors.is_empty(), "; ".join(errors))
+		var controller := BattleController.new()
+		var started := controller.start_new_battle(stage_id)
+		var players := controller.registry.living("player") if started else []
+		var enemies := controller.registry.living("enemy") if started else []
+		_expect("T069 %s deploys 3 versus 6-9" % stage_id, started and players.size() == 3 and enemies.size() >= 6 and enemies.size() <= 9)
+		var elite_count := 0
+		for enemy in enemies:
+			if enemy.rank == "elite":
+				elite_count += 1
+			enemy_names[enemy.display_name] = true
+		for player in players:
+			allied_names[player.display_name] = true
+		_expect("T069 %s contains an elite" % stage_id, elite_count >= 1)
+		_expect("T069 %s has planned dimensions" % stage_id, started and Vector2i(controller.grid.width, controller.grid.height) == expected_sizes[index])
+		controller.free()
+	_expect("T069 six stages cover every allied design", allied_names.size() == 8)
+	_expect("T069 six stages cover every enemy design", enemy_names.size() == 10)
+
+
+func _test_opportunity_state_and_validation() -> void:
+	var definitions := GameDataLoader.load_json("res://data/opportunities/opportunity_defs.json")
+	_expect("T070 four opportunity types load", definitions.opportunities.size() == 4)
+	var map_data := {"opportunities": [
+		{"id": "test_supply", "opportunity_id": "plain_supplies", "position": [1, 0]},
+		{"id": "test_fruit", "opportunity_id": "forest_fruit", "position": [2, 0]},
+		{"id": "test_iron", "opportunity_id": "hill_iron", "position": [3, 0]}
+	]}
+	var state := BattleOpportunityState.new()
+	state.setup(definitions, map_data)
+	_expect("T070 opportunity state starts full and hidden by query", state.remaining_count() == 3 and state.has_at(Vector2i(2, 0)))
+	var unit := _unit("opportunity_player", "player", "melee", Vector2i.ZERO, 10, 2, 2, 4, 1)
+	unit.current_hp = 5
+	var events := state.apply_path(unit, [Vector2i.ZERO, Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)])
+	_expect("T070 path triggers every opportunity in order", events.size() == 3 and events[0].opportunity_id == "plain_supplies" and events[1].opportunity_id == "forest_fruit" and events[2].opportunity_id == "hill_iron")
+	_expect("T070 HP opportunities heal with exact values", unit.current_hp == 8 and int(events[0].actual_amount) == 2 and int(events[1].actual_amount) == 1)
+	_expect("T070 shield opportunity increases current shield", unit.current_shield == 3 and int(events[2].value_before) == 2 and int(events[2].value_after) == 3)
+	_expect("T070 triggered opportunities disappear", state.remaining_count() == 0 and not state.has_at(Vector2i(1, 0)))
+	_expect("T070 opportunities cannot trigger twice", state.apply_path(unit, [Vector2i.ZERO, Vector2i(1, 0)]).is_empty())
+	var origin_state := BattleOpportunityState.new()
+	origin_state.setup(definitions, {"opportunities": [{"id": "origin", "opportunity_id": "plain_supplies", "position": [0, 0]}]})
+	_expect("T070 path origin is not consumed", origin_state.apply_path(unit, [Vector2i.ZERO, Vector2i(1, 0)]).is_empty() and origin_state.remaining_count() == 1)
+	var full_state := BattleOpportunityState.new()
+	full_state.setup(definitions, {"opportunities": [{"id": "full", "opportunity_id": "forest_fruit", "position": [1, 0]}]})
+	unit.current_hp = unit.max_hp
+	var full_events := full_state.apply_path(unit, [Vector2i.ZERO, Vector2i(1, 0)])
+	_expect("T070 full HP still consumes healing opportunity", full_events.size() == 1 and int(full_events[0].actual_amount) == 0 and full_state.remaining_count() == 0)
+	var stage_data := GameDataLoader.load_game_data("stage_005")
+	var duplicate_data: Dictionary = stage_data.duplicate(true)
+	duplicate_data.map.opportunities.append(duplicate_data.map.opportunities[0].duplicate(true))
+	var duplicate_errors := GameDataValidator.validate(duplicate_data)
+	_expect("T070 duplicate opportunity instance is rejected", _errors_contain(duplicate_errors, "duplicate opportunity instance id") and _errors_contain(duplicate_errors, "duplicate opportunity position"))
+	var mismatch_data: Dictionary = stage_data.duplicate(true)
+	mismatch_data.map.opportunities[0].position = [0, 0]
+	_expect("T070 opportunity terrain mismatch is rejected", _errors_contain(GameDataValidator.validate(mismatch_data), "opportunity terrain mismatch"))
+	var unknown_data: Dictionary = stage_data.duplicate(true)
+	unknown_data.map.opportunities[0].opportunity_id = "unknown"
+	_expect("T070 unknown opportunity is rejected", _errors_contain(GameDataValidator.validate(unknown_data), "unknown opportunity"))
+	var amount_data: Dictionary = stage_data.duplicate(true)
+	amount_data.opportunities.opportunities[0].amount = 0
+	_expect("T070 non-positive opportunity amount is rejected", _errors_contain(GameDataValidator.validate(amount_data), "positive integer"))
+	var controller := BattleController.new()
+	controller.start_new_battle("stage_003")
+	var initial_count := controller.opportunity_state.remaining_count()
+	controller.select_at(Vector2i(1, 11))
+	var moved := controller.click_at(Vector2i(2, 10))
+	_expect("T071 controller records path opportunity", moved and controller.last_action.opportunities.size() == 1 and controller.last_action.opportunities[0].opportunity_name == "水果")
+	_expect("T071 opportunity uses Chinese battle log", "机遇「水果」" in "\n".join(controller.battle_log))
+	_expect("T071 controller consumes opportunity once", controller.opportunity_state.remaining_count() == initial_count - 1 and not controller.opportunity_state.has_at(Vector2i(2, 10)))
+	controller.start_new_battle("stage_003")
+	_expect("T071 restart restores opportunities", controller.opportunity_state.remaining_count() == initial_count and controller.opportunity_state.has_at(Vector2i(2, 10)))
+	controller.free()
+
+
+func _test_enemy_opportunity_integration() -> void:
+	var terrain_data := GameDataLoader.load_json("res://data/terrain/terrain_defs.json")
+	var edge_data := GameDataLoader.load_json("res://data/terrain/edge_defs.json")
+	var small_grid := BattleGrid.new()
+	small_grid.setup({"width": 4, "height": 1, "tiles": [["plain", "plain", "plain", "plain"]], "edges": []}, terrain_data, edge_data)
+	var registry := BattleUnitRegistry.new()
+	var enemy := _unit("opportunity_enemy", "enemy", "melee", Vector2i.ZERO, 10, 0, 2, 1, 1)
+	enemy.current_hp = 5
+	var target := _unit("opportunity_target", "player", "melee", Vector2i(3, 0), 10, 0, 2, 1, 1)
+	registry.add_unit(enemy)
+	registry.add_unit(target)
+	var state := BattleOpportunityState.new()
+	state.setup(GameDataLoader.load_json("res://data/opportunities/opportunity_defs.json"), {"opportunities": [{"id": "ai_supply", "opportunity_id": "plain_supplies", "position": [1, 0]}]})
+	var events := EnemyAI.take_turn(enemy, small_grid, registry, state)
+	var has_event := false
+	for event in events:
+		if event.type == "opportunity" and event.opportunity_id == "plain_supplies":
+			has_event = true
+	_expect("T072 enemy movement triggers path opportunity", enemy.grid_pos == Vector2i(1, 0) and has_event and enemy.current_hp == 7)
+	_expect("T072 enemy opportunity disappears", state.remaining_count() == 0)
 
 
 func _test_ai_obstacle_routing() -> void:
@@ -604,7 +771,7 @@ func _test_elemental_abilities() -> void:
 	wood_controller.select_at(Vector2i(1, 11))
 	var moved_to_forest := wood_controller.click_at(Vector2i(2, 10))
 	var verdant := wood_controller.registry.get_unit("player_004")
-	_expect("T042 player movement integrates Wood ability", moved_to_forest and verdant.current_shield == 6 and wood_controller.last_action.ability.ability_id == "renewal")
+	_expect("T042 player movement integrates Wood ability", moved_to_forest and verdant.current_shield == 4 and wood_controller.last_action.ability.ability_id == "renewal")
 	_expect("T042 Wood ability is named in battle log", "生生不息" in wood_controller.battle_log.back())
 	wood_controller.free()
 
@@ -613,7 +780,7 @@ func _test_elemental_abilities() -> void:
 	earth_controller.select_at(Vector2i(4, 11))
 	var moved_to_hill := earth_controller.click_at(Vector2i(4, 9))
 	var warden := earth_controller.registry.get_unit("player_005")
-	_expect("T043 player movement integrates Earth ability", moved_to_hill and warden.current_shield == 12 and earth_controller.last_action.ability.ability_id == "source_of_all")
+	_expect("T043 player movement integrates Earth ability", moved_to_hill and warden.current_shield == 18 and earth_controller.last_action.ability.ability_id == "source_of_all")
 	_expect("T043 Earth ability is named in battle log", "万物之源" in earth_controller.battle_log.back())
 	earth_controller.free()
 
@@ -633,7 +800,7 @@ func _test_stage_three() -> void:
 	var controller := BattleController.new()
 	_expect("T045 stage three starts", controller.start_new_battle("stage_003"))
 	_expect("T045 stage three is 12 by 12", controller.grid.width == 12 and controller.grid.height == 12)
-	_expect("T045 stage three has 3 versus 5", controller.registry.living("player").size() == 3 and controller.registry.living("enemy").size() == 5)
+	_expect("T045 stage three has 3 versus 7", controller.registry.living("player").size() == 3 and controller.registry.living("enemy").size() == 7)
 	_expect("T045 stage three deploys all elemental units", controller.registry.get_unit("player_004") != null and controller.registry.get_unit("player_005") != null and controller.registry.get_unit("enemy_006") != null)
 	_expect("T046 stage three expands Forest coverage", _terrain_count(data.map, "forest") > _terrain_count(GameDataLoader.load_game_data("stage_002").map, "forest"))
 	_expect("T046 stage three includes River and Cliff edges", _edge_count(data.map, "river") >= 6 and _edge_count(data.map, "cliff") >= 6)
@@ -648,8 +815,8 @@ func _test_encyclopedia_catalog() -> void:
 	var data := GameDataLoader.load_game_data("stage_001")
 	var allies := UnitDefinitionCatalog.unique_by_name(data.players.units)
 	var enemies := UnitDefinitionCatalog.unique_by_name(data.enemies.units)
-	_expect("T048 encyclopedia lists five allied definitions", allies.size() == 5)
-	_expect("T048 encyclopedia deduplicates same-name enemies", enemies.size() == 4)
+	_expect("T048 encyclopedia lists eight allied definitions", allies.size() == 8)
+	_expect("T048 encyclopedia deduplicates ten enemy definitions", enemies.size() == 10)
 	_expect("T048 encyclopedia includes new elemental units", _definitions_contain(allies, "Verdant Guard") and _definitions_contain(allies, "Earth Warden") and _definitions_contain(enemies, "Flamecaster"))
 	_expect("T048 ability catalog contains three entries", data.abilities.abilities.size() == 3)
 
@@ -666,12 +833,13 @@ func _test_encyclopedia_ui() -> void:
 	var generation: int = main_scene.controller.battle_generation
 	main_scene.show_encyclopedia()
 	_expect("T049 Encyclopedia replaces battle view", main_scene.encyclopedia_view.visible and not main_scene.battle_view.visible)
-	_expect("T049 Encyclopedia separates complete team catalogs", int(main_scene.encyclopedia_entry_counts.player) == 5 and int(main_scene.encyclopedia_entry_counts.enemy) == 4)
+	_expect("T049 Encyclopedia separates complete team catalogs", int(main_scene.encyclopedia_entry_counts.player) == 8 and int(main_scene.encyclopedia_entry_counts.enemy) == 10)
 	var encyclopedia_text := _collect_control_text(main_scene.encyclopedia_view)
 	_expect("T054 Encyclopedia navigation remains English", "Unit Encyclopedia" in encyclopedia_text and "Back" in encyclopedia_text and main_scene.encyclopedia_tabs.get_tab_title(0) == "Allies" and main_scene.encyclopedia_tabs.get_tab_title(1) == "Enemies")
 	_expect("T054 unit names are Chinese", "翠绿卫士" in encyclopedia_text and "大地守卫" in encyclopedia_text and "火焰术士" in encyclopedia_text)
 	_expect("T054 English unit names are absent from cards", "Verdant Guard" not in encyclopedia_text and "Earth Warden" not in encyclopedia_text and "Flamecaster" not in encyclopedia_text)
 	_expect("T054 unit information is Chinese", "近战" in encyclopedia_text and "生命" in encyclopedia_text and "护盾" in encyclopedia_text and "特殊属性" in encyclopedia_text and "能力" in encyclopedia_text)
+	_expect("T073 enemy ranks are Chinese in Encyclopedia", "级别 普通" in encyclopedia_text and "级别 精英" in encyclopedia_text)
 	_expect("T054 old English unit labels are absent", "Special Attribute" not in encyclopedia_text and "True Damage" not in encyclopedia_text)
 	_expect("T055 Encyclopedia uses name initials", _has_label_text(main_scene.encyclopedia_view, "VG") and _has_label_text(main_scene.encyclopedia_view, "EW") and _has_label_text(main_scene.encyclopedia_view, "F"))
 	_expect("T055 ability descriptions are Chinese", "每回合第一次移动" in encyclopedia_text and "攻击位于森林" in encyclopedia_text and "每局第一次移动" in encyclopedia_text)
@@ -692,6 +860,8 @@ func _test_battle_ui_localization() -> void:
 	_expect("T064 terrain footer is Chinese", "平地" in main_scene.terrain_label.text and "高度" in main_scene.terrain_label.text and "Height" not in main_scene.terrain_label.text)
 	main_scene._show_hovered_cell(Vector2i(1, 8))
 	_expect("T064 hovered unit panel is Chinese", "阵营  玩家" in main_scene.unit_stats_label.text and "类型  近战" in main_scene.unit_stats_label.text and "护盾" in main_scene.unit_stats_label.text and "攻击" in main_scene.unit_stats_label.text and "坐标" in main_scene.unit_stats_label.text)
+	main_scene._show_hovered_cell(Vector2i(8, 2))
+	_expect("T073 enemy rank is Chinese in battle details", "级别  精英" in main_scene.unit_stats_label.text)
 	main_scene.controller.select_at(Vector2i(1, 8))
 	main_scene.controller.click_at(Vector2i(1, 7))
 	_expect("T065 movement log is Chinese", "先锋 移动" in main_scene.controller.battle_log.back() and "消耗" in main_scene.controller.battle_log.back() and "剩余" in main_scene.controller.battle_log.back())
@@ -761,6 +931,26 @@ func _definitions_contain(definitions: Array, unit_name: String) -> bool:
 		if str(definition.get("name", "")) == unit_name:
 			return true
 	return false
+
+
+func _definition_by_name(definitions: Array, unit_name: String) -> Dictionary:
+	for definition in definitions:
+		if str(definition.get("name", "")) == unit_name:
+			return definition
+	return {}
+
+
+func _combat_score(definition: Dictionary) -> float:
+	var score := float(definition.get("max_hp", 0))
+	score += float(definition.get("shield", 0)) * 2.0
+	score += float(definition.get("attack", 0)) * 3.0
+	score += float(definition.get("move_range", 0)) * 2.0
+	score += float(maxi(int(definition.get("attack_range", 1)) - 1, 0)) * 2.0
+	if bool(definition.get("true_damage", false)):
+		score += 8.0
+	if not str(definition.get("ability_id", "")).is_empty():
+		score += 8.0
+	return score
 
 
 func _errors_contain(errors: Array[String], fragment: String) -> bool:

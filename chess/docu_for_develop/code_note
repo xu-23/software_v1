@@ -1,0 +1,1662 @@
+代码规则：
+
+## 1. 当前规则合理性判断
+
+现有代码规则方向合理，可以作为 v0.1.0 开发准则继续使用。
+
+需要补充的问题：
+
+- 原规则只说明要模块化，但没有定义具体模块边界。
+- 原规则没有明确 Godot/GDScript 的文件命名、场景命名和资源目录约定。
+- 原规则没有覆盖 main_note 中新增的高度系统、地块边界系统、近战/远程、护盾和真实伤害规则。
+- 原规则中“尽量不留保护性接口和报错报告”需要细化：UI 和表现层可以简单，核心计算层必须做校验。
+- 原规则没有说明如何最小扩展地形、单位、边界和数值配置。
+
+以下补充规则作为 v0.1.0 最小可运行版本的代码执行标准。
+
+## 2. 总体代码原则
+
+1. 代码尽可能模块化。
+2. 模块之间只通过清晰的数据结构和公开函数交互。
+3. v0.1.0 优先完成可运行闭环，不做过度抽象。
+4. 玩法规则必须优先写在数据与计算模块中，UI 只展示结果，不重复实现规则。
+5. 涉及地图、移动、攻击、护盾、胜负、AI 的计算模块必须有输入检查和错误报告。
+6. 涉及按钮、面板、颜色块、临时图片的表现层可以保持简单，不做复杂防御。
+7. 所有关键函数、关键数据结构和非直观计算逻辑需要中文注释。
+8. 每个模块完成后，需要在文档中记录用途、主要文件、主要函数和扩展方式。
+
+## 3. 技术与目录规则
+
+### 3.1 项目路径
+
+开发目录：
+
+```text
+/home/xu/program-909/software/v1
+```
+
+方案文档目录：
+
+```text
+/home/xu/program-909/v1
+```
+
+### 3.2 推荐目录结构
+
+Godot 项目内使用以下结构：
+
+```text
+software/v1/
+├── project.godot
+├── scenes/
+│   ├── main/
+│   ├── battle/
+│   ├── ui/
+│   └── units/
+├── scripts/
+│   ├── battle/
+│   ├── grid/
+│   ├── units/
+│   ├── combat/
+│   ├── ai/
+│   ├── data/
+│   └── util/
+├── data/
+│   ├── maps/
+│   ├── units/
+│   ├── classes/
+│   ├── terrain/
+│   └── chapters/
+├── assets/
+│   ├── sprites/
+│   ├── tiles/
+│   ├── ui/
+│   ├── fonts/
+│   └── audio/
+└── docs/
+```
+
+### 3.3 命名规则
+
+| 类型 | 规则 | 示例 |
+|---|---|---|
+| GDScript 文件 | snake_case | `grid_map.gd` |
+| 场景文件 | PascalCase | `BattleScene.tscn` |
+| 类名 | PascalCase | `GridMap` |
+| 变量名 | snake_case | `move_range` |
+| 常量名 | UPPER_SNAKE_CASE | `MAX_GRID_SIZE` |
+| JSON 文件 | snake_case | `map_001.json` |
+| 单位 ID | snake_case + 编号 | `player_001` |
+| 地形 ID | snake_case | `plain` |
+| 边界 ID | snake_case + 编号 | `edge_001` |
+
+### 3.4 代码语言规则
+
+- 主要代码使用 GDScript。
+- 文件内容使用 UTF-8。
+- 注释可以使用中文。
+- 变量名、函数名、文件名使用英文。
+- UI 显示文本可以中英文混用，v0.1.0 允许临时英文显示。
+
+## 4. 必需模块定义
+
+### 4.1 主流程模块
+
+目录：
+
+```text
+scripts/battle/
+```
+
+建议文件：
+
+```text
+battle_controller.gd
+turn_manager.gd
+victory_checker.gd
+```
+
+职责：
+
+- 控制战斗整体状态。
+- 管理玩家回合和敌方回合。
+- 调用移动、攻击、AI、胜负判断模块。
+- 维护当前选中单位和当前操作状态。
+
+不得负责：
+
+- 不直接计算移动范围。
+- 不直接计算伤害。
+- 不直接解析 JSON 细节。
+
+### 4.2 地图与格子模块
+
+目录：
+
+```text
+scripts/grid/
+```
+
+建议文件：
+
+```text
+grid_map.gd
+terrain_def.gd
+edge_def.gd
+grid_position.gd
+```
+
+职责：
+
+- 保存地图宽高。
+- 保存每个格子的地形。
+- 查询地形是否可通行。
+- 查询地形高度。
+- 查询地形基础移动消耗。
+- 查询两个相邻格之间的边界类型。
+- 判断坐标是否在地图内。
+
+必须支持：
+
+- 平地：高度 0，可通行，基础移动消耗 1。
+- 森林：高度 1，可通行，基础移动消耗 2。
+- 水域：高度 0，不可通行。
+- 山体：高度 10，不可通行。
+- 普通边界、河流边界、悬崖边界。
+
+保护性检查：
+
+- 查询越界坐标时返回错误。
+- 查询未知地形 ID 时返回错误。
+- 查询非相邻格边界时返回错误。
+- 地图加载时检查宽高、tiles 数量、地形 ID、边界 ID。
+
+### 4.3 移动模块
+
+目录：
+
+```text
+scripts/grid/
+```
+
+建议文件：
+
+```text
+movement_calculator.gd
+pathfinder.gd
+```
+
+职责：
+
+- 根据单位移动力、地形、高度、边界和单位阻挡计算移动范围。
+- 计算从起点到目标点的路径。
+- 返回可移动格子集合和路径点列表。
+
+移动消耗公式：
+
+```text
+单步移动消耗 = 目标格基础移动消耗 + 高度差消耗 + 边界额外消耗
+```
+
+高度差消耗：
+
+```text
+高度差 = 目标格高度 - 当前格高度
+如果高度差 <= 0，高度差消耗 = 0
+如果高度差 > 0，高度差消耗 = 高度差
+```
+
+边界额外消耗：
+
+| 边界 | 移动规则 |
+|---|---|
+| 普通边界 | 额外消耗 0 |
+| 河流 | 额外消耗 1 |
+| 悬崖 | 不可通过 |
+
+单位阻挡规则：
+
+- 不能穿越敌方单位。
+- 可以穿越友方单位。
+- 不能停留在任何单位占据的格子。
+
+保护性检查：
+
+- 起点必须在地图内。
+- 单位移动力不能小于 0。
+- 目标格必须在地图内。
+- 地形、边界、单位占格数据异常时必须输出错误。
+
+### 4.4 单位模块
+
+目录：
+
+```text
+scripts/units/
+```
+
+建议文件：
+
+```text
+unit_model.gd
+unit_view.gd
+unit_registry.gd
+```
+
+职责：
+
+- 管理单位基础属性。
+- 管理单位当前状态。
+- 维护单位坐标。
+- 维护单位是否已移动、是否已行动、是否死亡。
+- 管理单位和地图格子的占用关系。
+
+基础属性：
+
+```text
+id
+name
+team
+unit_type
+class_id
+max_hp
+shield
+attack
+move_range
+attack_range
+true_damage
+sprite
+```
+
+运行时状态：
+
+```text
+current_hp
+current_shield
+grid_pos
+has_moved
+has_acted
+is_dead
+```
+
+保护性检查：
+
+- 单位 ID 不能重复。
+- `team` 只能为 `player` 或 `enemy`。
+- `unit_type` 只能为 `melee` 或 `ranged`。
+- 近战单位攻击距离必须为 1。
+- 远程单位攻击距离必须大于等于 1。
+- HP 必须大于 0。
+- 护盾、攻击、移动力不能小于 0。
+
+### 4.5 战斗与伤害模块
+
+目录：
+
+```text
+scripts/combat/
+```
+
+建议文件：
+
+```text
+attack_range_calculator.gd
+damage_calculator.gd
+combat_resolver.gd
+```
+
+职责：
+
+- 判断一个单位是否能攻击另一个单位。
+- 计算近战和远程攻击范围。
+- 处理高度对远程攻击距离的影响。
+- 处理护盾和真实伤害结算。
+- 输出攻击结果。
+
+近战规则：
+
+- 近战单位攻击距离只能为 1。
+- 近战攻击不能隔着悬崖边界。
+- 近战攻击不受高度差影响。
+
+远程规则：
+
+- 远程单位攻击距离为 1 及以上。
+- 远程攻击可以隔着悬崖边界。
+- 远程攻击受高度差修正。
+
+远程高度修正规则：
+
+```text
+高度差 = 攻击方所在地形高度 - 目标所在地形高度
+如果高度差 > 0，有效攻击距离 = 基础攻击距离 + 1
+如果高度差 = 0，有效攻击距离 = 基础攻击距离
+如果高度差 < 0，有效攻击距离 = max(基础攻击距离 - 1, 1)
+```
+
+伤害结算：
+
+```text
+基础伤害 = 攻击方攻击
+
+如果攻击方 true_damage 为 true：
+    受击方 HP -= 基础伤害
+    受击方护盾不变
+否则如果受击方当前护盾 > 0：
+    受击方当前护盾 = max(受击方当前护盾 - 基础伤害, 0)
+    护盾击碎时，溢出伤害不作用于 HP
+否则：
+    受击方 HP -= 基础伤害
+```
+
+攻击结果建议结构：
+
+```text
+attacker_id
+target_id
+damage_value
+shield_before
+shield_after
+hp_before
+hp_after
+shield_broken
+target_dead
+is_true_damage
+```
+
+保护性检查：
+
+- 攻击方和受击方必须存在。
+- 攻击方和受击方不能是同阵营。
+- 死亡单位不能攻击。
+- 死亡单位不能被攻击。
+- 攻击距离不合法时必须拒绝攻击并报告。
+
+### 4.6 AI 模块
+
+目录：
+
+```text
+scripts/ai/
+```
+
+建议文件：
+
+```text
+enemy_ai.gd
+ai_action.gd
+```
+
+职责：
+
+- 为敌方单位选择目标。
+- 判断当前是否可攻击。
+- 调用移动模块选择移动目标。
+- 调用战斗模块执行攻击。
+
+v0.1.0 AI 规则：
+
+```text
+1. 如果敌方单位死亡，跳过。
+2. 查找所有存活玩家单位。
+3. 如果当前已有可攻击目标，攻击优先目标。
+4. 如果当前没有可攻击目标，计算移动范围。
+5. 选择移动后最接近优先目标的可移动格。
+6. 移动到该格。
+7. 如果移动后有可攻击目标，则攻击。
+8. 如果移动后仍无可攻击目标，则待机。
+```
+
+目标优先级：
+
+```text
+优先 HP 最低
+再比较护盾最低
+再比较距离最近
+最后按单位 ID 字典序
+```
+
+保护性检查：
+
+- AI 没有可行动单位时直接结束敌方回合。
+- 没有存活玩家单位时交给胜负判断模块。
+- 没有可移动格时允许原地攻击或待机。
+
+### 4.7 UI 模块
+
+目录：
+
+```text
+scripts/ui/
+scenes/ui/
+```
+
+建议文件：
+
+```text
+battle_hud.gd
+unit_info_panel.gd
+action_menu.gd
+result_panel.gd
+```
+
+职责：
+
+- 显示当前回合。
+- 显示单位信息。
+- 显示移动、攻击、待机、结束回合按钮。
+- 显示 Victory / Defeat。
+- 显示地图高亮状态。
+
+UI 显示字段：
+
+```text
+名称
+类型
+HP
+护盾
+攻击
+移动力
+攻击距离
+所在地形高度
+```
+
+UI 规则：
+
+- UI 不直接计算移动范围。
+- UI 不直接计算伤害。
+- UI 只调用 battle_controller 暴露的操作函数。
+- UI 允许简单实现，v0.1.0 不要求动画和美术质量。
+
+### 4.8 数据模块
+
+目录：
+
+```text
+scripts/data/
+data/
+```
+
+建议文件：
+
+```text
+data_loader.gd
+data_validator.gd
+game_constants.gd
+```
+
+职责：
+
+- 读取 JSON 文件。
+- 校验地图、地形、边界、单位、关卡数据。
+- 将 JSON 转成运行时可用的数据对象。
+
+必需 JSON：
+
+```text
+data/units/player_units.json
+data/units/enemy_units.json
+data/maps/map_001.json
+data/chapters/chapter_001.json
+```
+
+建议增加：
+
+```text
+data/terrain/terrain_defs.json
+data/terrain/edge_defs.json
+```
+
+数据模块必须有保护性检查和清晰错误报告。
+
+### 4.9 资源与占位美术模块
+
+目录：
+
+```text
+assets/
+```
+
+规则：
+
+- v0.1.0 美术使用最简占位资源。
+- 地形可用纯色块或简单 Tile 图表示。
+- 单位可用纯色方块、圆形或简易图标表示。
+- 河流边界可用蓝色线条表示。
+- 悬崖边界可用深色粗线或断裂线表示。
+- 所有占位资源要集中放在 `assets/`，后续可替换。
+- 代码中不得硬编码绝对 Windows 路径引用资源。
+- 使用 Godot `res://` 路径引用资源。
+
+## 5. 模块依赖规则
+
+推荐依赖方向：
+
+```text
+BattleController
+-> TurnManager
+-> UnitRegistry
+-> GridMap
+-> MovementCalculator
+-> AttackRangeCalculator
+-> CombatResolver
+-> EnemyAI
+-> UI
+```
+
+更具体的调用规则：
+
+- `BattleController` 可以调用所有核心模块。
+- `UI` 只能调用 `BattleController`。
+- `EnemyAI` 可以调用移动模块和战斗模块，但不直接改 UI。
+- `MovementCalculator` 只能依赖地图、边界和单位占格数据。
+- `DamageCalculator` 不依赖 UI 和场景节点。
+- `DataLoader` 不依赖战斗流程。
+- 纯计算模块尽量写成无场景依赖的脚本，方便测试和复用。
+
+## 6. 保护性代码与错误报告规则
+
+必须做保护性代码的模块：
+
+| 模块 | 必须保护的内容 |
+|---|---|
+| 数据加载 | 文件不存在、JSON 格式错误、字段缺失 |
+| 地图 | 越界坐标、未知地形、非法边界 |
+| 移动 | 移动力非法、不可通行、边界不可通过 |
+| 攻击 | 攻击距离非法、同阵营攻击、死亡单位攻击 |
+| 伤害 | HP/护盾非法、攻击值非法 |
+| AI | 无目标、无可移动格、目标死亡 |
+| 胜负 | 单位列表为空或状态异常 |
+
+可以保持简单的模块：
+
+| 模块 | 简化方式 |
+|---|---|
+| UI | 允许显示默认值，不要求复杂异常恢复 |
+| 占位美术 | 允许缺图时使用默认色块 |
+| 动画 | v0.1.0 可不实现 |
+| 音频 | v0.1.0 可不实现 |
+
+错误报告规则：
+
+- 使用 `push_error()` 报告严重数据或规则错误。
+- 使用 `push_warning()` 报告可继续运行的缺省问题。
+- 关键函数返回失败时不能静默忽略。
+- 错误信息需要包含模块名、函数名和关键 ID。
+
+示例：
+
+```text
+[GridMap.get_tile] invalid grid position: (11, 3)
+[DataValidator.validate_unit] invalid unit_type for unit player_001
+[CombatResolver.attack] target out of range: attacker=player_002 target=enemy_001
+```
+
+## 7. 最简增加和复用定义规则
+
+### 7.1 增加地形
+
+新增地形时只修改：
+
+```text
+data/terrain/terrain_defs.json
+```
+
+必须填写：
+
+```text
+id
+name
+passable
+move_cost
+height
+```
+
+不允许在移动模块里为单个地形写特殊判断，除非该地形确实有独立规则。
+
+### 7.2 增加边界
+
+新增边界类型时只修改：
+
+```text
+data/terrain/edge_defs.json
+```
+
+必须填写：
+
+```text
+id
+name
+passable
+extra_move_cost
+blocks_melee
+blocks_ranged
+```
+
+地图中具体边界只写在：
+
+```text
+data/maps/map_001.json
+```
+
+### 7.3 增加单位
+
+新增单位时只修改：
+
+```text
+data/units/player_units.json
+data/units/enemy_units.json
+```
+
+必须填写：
+
+```text
+id
+name
+team
+unit_type
+class_id
+max_hp
+shield
+attack
+move_range
+attack_range
+true_damage
+sprite
+```
+
+新增近战单位：
+
+```text
+unit_type = "melee"
+attack_range = 1
+```
+
+新增远程单位：
+
+```text
+unit_type = "ranged"
+attack_range >= 1
+```
+
+### 7.4 增加职业
+
+职业定义放在：
+
+```text
+data/classes/class_defs.json
+```
+
+v0.1.0 职业只作为单位分类，不做成长和技能。
+
+职业字段建议：
+
+```text
+id
+name
+unit_type
+description
+```
+
+### 7.5 增加关卡
+
+新增关卡时增加：
+
+```text
+data/maps/map_002.json
+data/chapters/chapter_002.json
+```
+
+不要复制修改核心代码。关卡差异应优先通过 JSON 表达。
+
+## 8. 测试与验证规则
+
+v0.1.0 至少验证以下场景：
+
+| 编号 | 场景 | 预期 |
+|---|---|---|
+| T001 | 玩家单位点击选中 | 显示单位信息和移动范围 |
+| T002 | 平地移动 | 消耗 1 点移动力 |
+| T003 | 进入森林 | 消耗森林基础移动 2 + 上坡高度差 |
+| T004 | 跨河流移动 | 额外消耗 1 点移动力 |
+| T005 | 悬崖移动 | 不可通过 |
+| T006 | 山体移动 | 不可进入 |
+| T007 | 近战攻击 | 只能攻击距离 1 的敌人 |
+| T008 | 近战隔悬崖攻击 | 不允许 |
+| T009 | 远程高打低 | 有效攻击距离 +1 |
+| T010 | 远程低打高 | 有效攻击距离 -1，最低为 1 |
+| T011 | 攻击有护盾单位 | 先扣护盾 |
+| T012 | 护盾被击碎 | 溢出伤害不扣 HP |
+| T013 | 无护盾单位受击 | 直接扣 HP |
+| T014 | HP 小于等于 0 | 单位死亡并移除 |
+| T015 | 敌方 AI 行动 | 能靠近并攻击玩家 |
+| T016 | 击败全部敌方 | 显示 Victory |
+| T017 | 全部玩家死亡 | 显示 Defeat |
+
+## 9. 文档留存规则
+
+代码完成后需要留下以下文档：
+
+```text
+docs/code_structure.md
+docs/data_format.md
+docs/v0.1.0_test_record.md
+```
+
+### 9.1 code_structure.md
+
+记录：
+
+- 每个模块的用途。
+- 每个脚本文件的职责。
+- 主要类名和函数名。
+- 模块之间的调用关系。
+
+### 9.2 data_format.md
+
+记录：
+
+- 单位 JSON 格式。
+- 地形 JSON 格式。
+- 边界 JSON 格式。
+- 地图 JSON 格式。
+- 关卡 JSON 格式。
+- 新增单位、地形、边界、关卡的最小步骤。
+
+### 9.3 v0.1.0_test_record.md
+
+记录：
+
+- 手动测试项目。
+- 已通过项目。
+- 未通过项目。
+- 已知问题。
+- 下一版本修复建议。
+
+## 10. v0.1.0 不做的代码工作
+
+v0.1.0 不实现以下内容：
+
+- 存档系统。
+- 多关卡流程。
+- 主菜单复杂交互。
+- 装备系统。
+- 技能系统。
+- 经验值和等级成长。
+- 战斗动画。
+- 音频系统。
+- Web 导出。
+- 联机。
+- 复杂 ECS 架构。
+- 插件式规则编辑器。
+
+## 11. 实现优先级
+
+建议按以下顺序实现：
+
+```text
+1. Godot 项目与目录结构
+2. JSON 数据文件
+3. 数据加载与校验
+4. 地图显示
+5. 单位显示与占格
+6. 移动范围计算
+7. 单位移动
+8. 攻击范围计算
+9. 护盾与伤害结算
+10. 回合管理
+11. 敌方 AI
+12. 胜负判断
+13. UI 显示
+14. 测试记录与文档
+```
+
+## 12. v0.1.0 实现结果
+
+v0.1.0 已完成，后续版本必须保留以下实现基线：
+
+- 实际 Godot 项目根目录为 `/home/xu/program-909/software/v1/chess`。
+- JSON 数据加载与校验、10x10 地图、地形高度和地块边界已经可运行。
+- 单位、加权移动、近战/远程、护盾伤害、AI、回合和胜负模块已经拆分。
+- UI 已能显示棋盘、单位、移动与攻击范围、HUD 和结算。
+- v0.1.0 自动化测试结果为 31 项通过、0 项失败。
+- v0.1.0 备份目录 `/home/xu/program-909/software/v1/chess_v0.1.0` 不得修改。
+
+## 13. v0.1.1 增量代码规则
+
+### 13.1 修改范围
+
+v0.1.1 只修改以下文件或模块：
+
+```text
+project.godot
+scripts/battle/battle_controller.gd
+scripts/ai/enemy_ai.gd
+scripts/ui/battle_board.gd
+scripts/ui/main.gd
+tests/test_runner.gd
+tests/capture_ui.gd
+README.md
+docs/
+```
+
+地图、单位、职业、地形和关卡 JSON 不修改。移动、攻击和伤害公式不修改。
+
+### 13.2 控制器新增状态
+
+`BattleController` 增加：
+
+```text
+battle_log: Array[String]
+last_action: Dictionary
+enemy_action_delay: float
+battle_generation: int
+```
+
+规则：
+
+- `battle_log` 最多保留 8 条，所有战斗消息统一由 `_set_message()` 写入。
+- `last_action` 只保存最近一次移动或攻击的显示数据，不参与规则计算。
+- `enemy_action_delay` 默认 `0.35` 秒，测试可设置为 `0.0`。
+- 每次 `start_new_battle()` 增加 `battle_generation`。
+- 异步敌方回合保存启动时的 generation；generation 改变后必须停止，防止旧任务污染新战斗。
+
+`last_action` 的最小结构：
+
+```text
+移动：{type, unit_id, path, from, to}
+攻击：{type, attacker_id, target_id, from, to, target_dead}
+```
+
+### 13.3 取消状态
+
+增加公开函数：
+
+```gdscript
+func cancel_current_action() -> void
+```
+
+规则：
+
+- `phase == "attack"` 时返回到当前单位的 `move` 或 `action` 状态。
+- 单位尚未移动时重新计算并显示移动范围。
+- 单位已移动时返回 `action` 状态。
+- 其他可输入状态调用原有取消选择逻辑。
+- UI 的右键和 Esc 统一调用该函数。
+
+### 13.4 敌方回合异步规则
+
+- `end_player_turn()` 设置 `current_team = "enemy"` 后启动敌方回合协程。
+- 每个敌方单位完成后立即发送 `state_changed`。
+- 有场景树且间隔大于 0 时，通过 `SceneTreeTimer.timeout` 等待。
+- 测试控制器不在场景树或间隔为 0 时，不等待并同步完成。
+- 延迟期间 `_can_player_input()` 必须持续返回 false。
+- 战斗结束或 generation 变化时立即停止剩余敌方行动。
+
+### 13.5 战斗日志规则
+
+- 日志由控制器拥有，UI 只读。
+- 日志至少记录回合、移动、攻击、待机和结算。
+- UI 按旧到新顺序显示最近 8 条。
+- 重开战斗先清空日志，再写入第一回合消息。
+- 测试不得通过 UI 文本反推规则状态，应直接检查控制器日志数组。
+
+### 13.6 悬停与路径预览规则
+
+`BattleBoard` 增加信号：
+
+```gdscript
+signal hovered_cell_changed(pos: Vector2i)
+```
+
+棋盘负责：
+
+- 将鼠标坐标转为格子坐标。
+- 仅在悬停格变化时发送信号。
+- 对可达格调用 `BattleController.get_selected_path()` 取得路径。
+- 绘制路径和最近行动标记。
+
+主 UI 负责：
+
+- 接收悬停坐标。
+- 显示格子、地形、高度、移动消耗和单位信息。
+- 显示路径总消耗。
+- 不修改控制器的选择和行动状态。
+
+移动路径计算仍由 `MovementCalculator` 负责，UI 不自行寻路。
+
+### 13.7 最近行动标记规则
+
+- 玩家移动成功后将完整路径写入 `last_action`。
+- 玩家或敌方攻击后记录攻击者位置和目标位置。
+- 棋盘以线段和格子边框显示最近行动。
+- 标记不得改变格子命中检测、移动范围或攻击范围。
+- 新战斗开始时 `last_action` 设为空字典。
+
+### 13.8 UI 布局规则
+
+- 右侧 HUD 在现有单位信息和操作按钮之间加入悬停信息及日志区域。
+- 日志区域使用固定最小高度，最长文本允许换行或裁切，不挤压按钮。
+- 不新增说明型首页、弹窗或嵌套卡片。
+- 1100x720 下棋盘与所有按钮必须完整可见。
+- 鼠标离开棋盘后恢复显示当前选择单位信息或战场存活统计。
+
+### 13.9 v0.1.1 测试补充
+
+| 编号 | 必测内容 |
+|---|---|
+| T020 | 日志最多保留 8 条并保持顺序 |
+| T021 | 重开后日志和最近行动清空 |
+| T022 | 攻击状态取消后保留选择并返回正确阶段 |
+| T023 | 路径预览起终点和总代价正确 |
+| T024 | 玩家移动生成路径型最近行动数据 |
+| T025 | 玩家攻击生成攻击型最近行动数据 |
+| T026 | 敌方回合期间玩家输入被拒绝 |
+| T027 | 零延迟模式完整敌方回合可同步测试 |
+| T028 | 1100x720 UI 冒烟截图无重叠和裁切 |
+
+v0.1.0 的全部自动测试必须继续通过。新增测试不能通过降低原有断言规避回归。
+
+### 13.10 v0.1.1 实现顺序
+
+```text
+1. 更新项目版本
+2. 增加控制器日志与最近行动状态
+3. 改造取消状态
+4. 增加敌方回合分步等待和 generation 保护
+5. 增加棋盘悬停信号与路径绘制
+6. 更新 HUD 悬停信息与日志布局
+7. 增加 T020-T027 自动测试
+8. 执行图形启动与 T028 截图检查
+9. 更新 README、测试记录和最终报告
+```
+
+## 14. v0.1.2 增量代码规则
+
+### 14.1 规则优先级与备份
+
+- v0.1.2 以 `/home/xu/program-909/v1/main_v0.1.2.md` 为唯一实施基线。
+- 本节覆盖早期章节中的上坡移动消耗、远程高差射程修正和单次移动限制。
+- v0.1.1 备份目录 `/home/xu/program-909/software/v1/chess_v0.1.1` 不得修改。
+- 实际开发目录仍为 `/home/xu/program-909/software/v1/chess`。
+
+### 14.2 单位移动状态
+
+`BattleUnit` 增加：
+
+```gdscript
+var remaining_move_points: int
+var move_spent_this_turn: int
+```
+
+初始化和 `reset_turn()` 必须执行：
+
+```text
+remaining_move_points = move_range
+move_spent_this_turn = 0
+```
+
+每段移动后：
+
+```text
+remaining_move_points -= segment_cost
+move_spent_this_turn += segment_cost
+has_moved = true
+```
+
+- `has_moved` 只保留为状态记录，不得再用于禁止继续移动。
+- 攻击或待机后设置 `has_acted = true`，并将剩余移动点设为 0。
+- 快照必须包含两个新增移动字段。
+
+### 14.3 移动消耗接口
+
+高度完全退出移动计算。
+
+`BattleGrid.get_step_cost()` 调整为可接收当前剩余点：
+
+```gdscript
+func get_step_cost(a: Vector2i, b: Vector2i, available_points: int = -1) -> int
+```
+
+普通地形：
+
+```text
+平地基础消耗 1
+森林基础消耗 2
+河流边界额外消耗 1
+悬崖不可通过
+水域和山体不可进入
+```
+
+沼泽定义增加：
+
+```json
+{
+  "id": "swamp",
+  "move_cost": 2,
+  "move_rule": "consume_all",
+  "minimum_entry_points": 2,
+  "height": 0
+}
+```
+
+沼泽规则：
+
+- 当前剩余点少于 2 时返回不可进入。
+- 当前剩余点至少为 2 时，单步消耗等于当前全部剩余点。
+- 进入后剩余移动点为 0。
+- 沼泽可以是路径终点，但搜索不得从已经耗尽预算的沼泽节点继续扩展。
+- 跨河进入沼泽仍以消耗全部剩余点结算，不产生负数。
+
+`MovementCalculator.calculate()` 增加预算参数：
+
+```gdscript
+static func calculate(unit, grid, registry, budget: int = -1) -> Dictionary
+```
+
+- `budget < 0` 时使用 `unit.remaining_move_points`。
+- 搜索每一步将 `budget - current_cost` 传给 `get_step_cost()`。
+- 返回结构继续包含 `costs`、`parents` 和 `reachable`。
+- 同一回合的每段移动都重新从单位当前位置计算。
+
+### 14.4 Move 命令与多次移动
+
+`BattleController` 增加：
+
+```gdscript
+func request_move() -> bool
+```
+
+合法条件：
+
+- 当前为玩家回合。
+- Menu 未打开。
+- 已选择存活玩家单位。
+- 单位尚未行动。
+- `remaining_move_points > 0`。
+
+选择单位时，有剩余点则直接进入 `move`，保留直接点击移动方式。
+
+每次合法移动：
+
+1. 从 `movement_data.costs[target]` 读取本段实际成本。
+2. 扣除剩余点并增加累计消耗。
+3. 更新位置、日志和 `last_action`。
+4. 若仍有剩余点，重新计算范围并保持 `move`。
+5. 若剩余为 0，进入 `action`。
+
+不得根据曼哈顿距离估算消耗，也不得在 UI 中直接修改移动点。
+
+### 14.5 远程不可低打高
+
+移除原有远程射程 `+1/-1` 规则。
+
+`AttackRangeCalculator` 增加可复用位置接口：
+
+```gdscript
+static func can_attack_from(attacker, from_pos: Vector2i, target, grid) -> bool
+```
+
+规则：
+
+- 近战仍要求距离 1，忽略高度，受悬崖阻挡。
+- 远程距离必须小于等于基础 `attack_range`。
+- 远程攻击者所在地形高度必须大于或等于目标所在地形高度。
+- 同高返回 true，低打高返回 false。
+- 远程仍不受悬崖阻挡。
+- `can_attack()` 调用 `can_attack_from()`，不得复制一套判断。
+- `range_cells()` 只返回同时满足基础射程且高度不高于攻击者的格子。
+
+### 14.6 远程 AI 位置选择
+
+AI 选择移动终点时按以下优先级：
+
+```text
+移动后存在合法攻击目标
+-> 到最近玩家的曼哈顿距离
+-> 移动消耗
+-> y 坐标
+-> x 坐标
+```
+
+- 使用 `AttackRangeCalculator.can_attack_from()` 预判，不允许临时修改单位坐标做试算。
+- AI 仍在一个决策中移动到最终格，不拆成多段 UI 操作。
+- AI 完成移动后必须更新剩余点和累计消耗。
+
+### 14.7 关卡目录与参数化加载
+
+新增：
+
+```text
+data/chapters/chapter_catalog.json
+data/chapters/chapter_002.json
+data/maps/map_002.json
+```
+
+`GameDataLoader` 提供：
+
+```gdscript
+static func load_chapter_catalog() -> Dictionary
+static func load_game_data(chapter_id: String = "stage_001") -> Dictionary
+```
+
+- 目录条目包含 `id`、显示信息、`map_path` 和 `chapter_path`。
+- 找不到关卡 ID 时报告错误并返回空字典。
+- 所有路径必须使用 `res://`。
+- `GameDataValidator` 增加目录 ID、文件路径和关卡数据校验。
+- 每张地图、每个出生点和每个单位定义都必须验证。
+
+控制器实例化单位时，必须按当前关卡 `player_spawns` 和 `enemy_spawns` 中的 ID 生成。禁止遍历全部定义并默认生成，否则新增单位会错误进入第一关。
+
+`BattleController` 增加：
+
+```gdscript
+var current_chapter_id: String
+func start_new_battle(chapter_id: String = "stage_001") -> bool
+func stop_battle() -> void
+```
+
+- Restart 使用 `current_chapter_id`。
+- `stop_battle()` 增加 `battle_generation`、清除战斗状态并阻止旧 AI 任务继续执行。
+
+### 14.8 动态棋盘
+
+- 删除固定 `BOARD_SIZE = 10`。
+- Tile 大小使用 `grid.width` 和 `grid.height` 计算。
+- 10x10 与 12x12 都必须居中并完整显示。
+- 地形、边界、单位、路径、高亮和鼠标坐标转换统一使用同一动态几何参数。
+- 增加沼泽的独立颜色和简洁图案。
+
+### 14.9 关卡选择 UI
+
+`Main` 维护两个互斥视图：
+
+```text
+level_select_view
+battle_view
+```
+
+- 程序启动默认显示关卡选择。
+- 关卡条目读取目录数据，不在 UI 中硬编码关卡路径。
+- 点击 Start 后调用 `start_new_battle(chapter_id)` 并切换到战斗视图。
+- 返回 Levels 时调用 `stop_battle()` 再显示关卡选择。
+- 当前关卡名显示在战斗 HUD。
+
+### 14.10 Menu 规则
+
+顶层按钮为：
+
+```text
+Move
+Attack
+Wait
+End Turn
+Menu
+```
+
+Menu 内至少包含：
+
+```text
+Restart
+Levels
+```
+
+控制器增加：
+
+```gdscript
+var menu_open: bool
+func set_menu_open(value: bool) -> void
+```
+
+- `_can_player_input()` 必须检查 `not menu_open`。
+- Menu 打开时不修改 `phase`、选择单位、移动范围或攻击范围。
+- Menu 关闭后恢复打开前状态。
+- Restart 和 Levels 必须关闭 Menu 后再执行。
+- Menu 在敌方回合与 finished 状态保持可用。
+- 未来选项只能增加菜单项，不应继续挤占战斗命令区。
+
+### 14.11 数据内容
+
+- `terrain_defs.json` 增加 `swamp`。
+- 玩家定义增加 `player_003` Ranger。
+- 敌方定义增加 `enemy_004` Raider C、`enemy_005` Sentry。
+- 第一关地图、出生点和单位集合保持不变。
+- 第二关使用 12x12 地图、3 名玩家、5 名敌人以及全部地形。
+- 第二关远程单位有可到达的森林高地，可用于攻击同高或更低位置的目标。
+
+### 14.12 测试迁移
+
+v0.1.1 测试全部保留，但以下旧预期按新规则更新：
+
+```text
+T003 森林上坡：3 -> 2
+T009 远程高打低：基础射程内允许，不增加射程
+T010 远程同高允许，低打高禁止
+```
+
+新增测试至少覆盖：
+
+- 剩余移动点初始化、扣除、重置和耗尽。
+- 同回合多段移动、Move 按钮和直接移动。
+- 沼泽最低进入点和清空移动力。
+- 高度不影响移动。
+- 远程同高/高打低判定与远程 AI 高地选择。
+- 两关目录、加载、单位数量、第二关地形和动态尺寸。
+- Restart 当前关卡、Levels 返回、Menu 输入锁定。
+- 关卡选择、第一关、第二关和 Menu 的图形冒烟检查。
+
+自动化断言不少于 60 项，失败数必须为 0。
+
+### 14.13 v0.1.2 文档
+
+完成代码后更新或新增：
+
+```text
+README.md
+docs/code_structure.md
+docs/data_format.md
+docs/rules_reference_v0.1.2.md
+docs/v0.1.2_test_record.md
+docs/final_report_v0.1.2.md
+```
+
+v0.1.0 与 v0.1.1 文档和截图保留，不覆盖。
+
+### 14.14 实现顺序
+
+```text
+1. 更新项目版本和 JSON 数据
+2. 参数化关卡加载并按出生点生成单位
+3. 修改移动消耗、沼泽和剩余移动点
+4. 修改远程高打低和 AI 位置选择
+5. 增加多段移动与 Move 命令
+6. 改造动态棋盘
+7. 增加关卡选择和 Menu
+8. 迁移旧测试并增加新测试
+9. 执行三种界面图形检查
+10. 更新规则参考、测试记录和最终报告
+```
+
+## 15. v0.1.3 增量代码规则
+
+### 15.1 规则优先级与保护
+
+- v0.1.3 以 `pre_v0.1.3.md` 和 `main_v0.1.3.md` 为最新实施基线。
+- 保留 v0.1.2 非冲突功能、测试、文档和截图。
+- `/home/xu/program-909/software/v1/chess_v0.1.2` 是只读式上一版快照，不得修改或覆盖。
+
+### 15.2 名称模板与实例 ID
+
+- `name` 是模板一致性键，`id` 是关卡实例键。
+- 同名定义允许不同 ID，但全部静态字段必须相同；运行时 buff 不参与比较。
+- 校验器必须跨双方定义检查名称冲突，并给出冲突字段。
+- Encyclopedia 按 `team + name` 去重，不得以 ID 生成重复卡片。
+
+### 15.3 特殊属性和能力数据
+
+单位静态字段增加：
+
+```gdscript
+special_attribute: String # none/wood/fire/earth
+ability_id: String
+```
+
+运行时字段增加：
+
+```gdscript
+turn_triggered_abilities: Dictionary
+battle_triggered_abilities: Dictionary
+```
+
+回合重置只清空 `turn_triggered_abilities`，不得清空本局记录。能力定义放在 `data/abilities/ability_defs.json`，加载器和校验器必须检查引用。
+
+### 15.4 唯一能力解析器
+
+新增 `SpecialAbilityResolver`，公开：
+
+```gdscript
+static func apply_terrain_entry(unit, terrain_id: String) -> Dictionary
+static func attack_multiplier(attacker, target, grid) -> int
+```
+
+- 玩家控制器和 EnemyAI 都调用该解析器。
+- UI、日志和测试读取返回结果，不复制规则。
+- 木：每回合第一次以 Forest 为移动终点，当前护盾 +2。
+- 土：每局第一次以 Hill 为移动终点，先消耗触发机会；当前护盾大于 0 时翻倍。
+- 火：目标位于 Forest 时攻击倍率 2，否则 1。
+
+### 15.5 伤害接口
+
+`DamageCalculator.apply(attacker, target, damage_multiplier := 1)` 先计算 `damage_value = attack * multiplier`，再执行原护盾优先、击碎无溢出、真实伤害和死亡逻辑。结果必须包含 `damage_multiplier` 与 `damage_value`。
+
+### 15.6 地形
+
+- Forest 改为高度 0、消耗 2、最低进入点 2。
+- 新增 Hill：可通行、高度 1、消耗 2、最低进入点 2。
+- Mountain 保留为不可通行障碍。
+- `BattleBoard` 为 Hill 提供独立图案；所有尺寸继续动态计算。
+
+### 15.7 Encyclopedia
+
+- `Main` 增加 `encyclopedia_view`，与关卡选择、战斗视图互斥。
+- Menu 顺序为 Restart、Levels、Encyclopedia。
+- 百科保留当前战斗，不调用 `stop_battle()`。
+- 使用 Allies/Enemies 标签页、滚动布局和数据驱动卡片。
+- 条目显示占位头像、全部基础数值、特殊属性及能力；无值显示 `None`。
+- Back 返回战斗，不能改变 controller 选择、回合、单位状态或 generation。
+
+### 15.8 第三关
+
+- 增加 `map_003.json`、`chapter_003.json` 和 catalog 条目。
+- 12x12，玩家 3、敌方 5，包含两个新己方与一个新敌方单位。
+- Forest 数量多于第二关；River、Cliff 各至少 6 条；出生点合法且可接触。
+
+### 15.9 测试与文档
+
+- v0.1.2 的 80 项断言全部保留或按 Forest 高度的明确变更迁移。
+- 新增名称一致性、能力、Hill、百科和第三关测试，总数不少于 100。
+- 图形检查至少覆盖三关选择、Encyclopedia 两个分组、第三关棋盘和能力反馈。
+- 更新 README、结构、数据格式、v0.1.3 规则参考、测试记录和最终报告。
+
+### 15.10 实现顺序
+
+```text
+1. 版本、能力和单位数据
+2. 名称/能力/地图校验
+3. 单位运行时能力状态和解析器
+4. 玩家、AI 与伤害接入
+5. Hill 绘制和第三关
+6. Encyclopedia
+7. 自动化及图形测试
+8. 文档和试玩启动
+```
+
+## 16. v0.1.3 试玩反馈增量代码规则
+
+### 16.1 优先级
+
+- 本节覆盖第 15 节中与 Encyclopedia 文案、单位占位图标和 EnemyAI 选位有关的旧规则。
+- `pre_v0.1.3.md` 的本次试玩反馈与 `main_v0.1.3.md` 第 16 节为实施基线。
+- v0.1.3 其他单位、能力、地形、伤害、关卡和状态规则保持不变。
+
+### 16.2 单位信息本地化边界
+
+- `Unit Encyclopedia`、`Back`、`Allies`、`Enemies` 保持英文。
+- 单位模板 `name` 保持英文，不增加本地化名称字段。
+- `main.gd` 只翻译单位卡片内的字段标签、类型、职业、布尔值、特殊属性与空值。
+- 能力定义的 `description` 改为中文，能力 ID 和触发器不得变化。
+- 映射使用明确 Dictionary，不通过字符串 `capitalize()` 推测中文文本；未知值回退显示原值。
+
+### 16.3 图标缩写唯一实现
+
+新增 `scripts/ui/unit_icon_formatter.gd`：
+
+```gdscript
+static func initials(display_name: String) -> String
+```
+
+- 按空格拆词，获取各词首字母并大写。
+- 首词之后独立的 `man`、`woman` 忽略；完整单词 `Marksman` 不拆分。
+- 无有效名称返回 `?`。
+- `BattleBoard._draw_units()` 与 Encyclopedia 头像必须调用该接口，不得复制缩写算法。
+- 两个及以上字符使用较小字号，绘制宽度以圆形头像直径为上限。
+
+### 16.4 AI 战略路线评价
+
+`EnemyAI.take_turn()` 保留“先检查即时攻击、移动后再检查攻击”的流程。`_choose_destination()` 增加 `registry` 参数，并按以下优先级排序：
+
+```text
+1. 本回合移动后可立即合法攻击
+2. 到任一合法攻击位置的剩余战略路线代价
+3. 无战略路线时到最近目标的曼哈顿距离
+4. 本回合移动成本与坐标确定性排序
+```
+
+战略路线采用小地图 Dijkstra 搜索：
+
+- 搜索目标不是玩家所在格，而是 `AttackRangeCalculator.can_attack_from()` 返回真的攻击位置。
+- 不可通行地形和不可通行边界不加入开放集。
+- 玩家占据格阻挡路线；同阵营单位占据格可作为未来路径经过格。
+- 普通战略步长为目标地形 `move_cost + edge.extra_move_cost`，至少为 1。
+- `consume_all` 地形使用 `minimum_entry_points + edge.extra_move_cost` 作为跨回合估价。
+- 返回不可达哨兵值时使用原曼哈顿规则，确保异常地图仍有确定行为。
+- 搜索只评价目的地；本回合可达范围和实际扣点继续由 `MovementCalculator` 负责。
+
+### 16.5 测试义务
+
+- `UnitIconFormatter` 覆盖 A、VG、EW、忽略独立 man/woman、Marksman 和空名称。
+- Encyclopedia 自动化测试检查中文单位字段及保留的英文导航/名称。
+- 新增人工小地图回归：三射程 AI 只有先增加曼哈顿距离才能绕过墙体，到合法射击位的战略路线必须持续缩短。
+- 多回合模拟必须证明该 AI 最终发起攻击；同时验证即时攻击和原有高地选位不回归。
+- 图形截图必须可见 VG/EW 双字母图标且无裁切，并重新检查 Encyclopedia 双方页。
+
+### 16.6 修订验证结果
+
+- 自动化最终结果：141 passed，0 failed。
+- 人工障碍地图验证三射程 AI 接受曼哈顿距离 3 -> 5 的第一步，并最终到达合法射击位。
+- 第三关原始地图验证 Sentry 离开出生区域并在静止玩家条件下最终攻击。
+- 1100x720 图形验证覆盖棋盘 VG/EW、Menu、Encyclopedia Allies/Enemies 和中文单位信息。
+
+## 17. v0.1.4 增量代码规则
+
+### 17.1 优先级与保护
+
+- v0.1.4 以 `pre_v0.1.4.md` 和 `main_v0.1.4.md` 为最新实施基线。
+- 保留 v0.1.3 非冲突功能、测试、历史文档和截图。
+- `/home/xu/program-909/software/v1/chess_v0.1.3` 是只读式上一版快照，不得修改或覆盖。
+
+### 17.2 战斗信息本地化
+
+- `BattleController` 是战斗状态、操作反馈和日志中文文本的唯一来源。
+- `Main` 使用明确 Dictionary 翻译地形、阵营、类型和属性，未知值回退原值。
+- 单位英文名称不得翻译；游戏标题、关卡、命令、Menu 和 Encyclopedia 导航保持英文。
+- 地形悬停、单位悬停、当前单位、无选择摘要、能力和伤害文本必须使用统一中文术语。
+
+### 17.3 单位数值覆盖
+
+新增 `UnitStatOverrides`，允许字段严格限定为：
+
+```gdscript
+const ALLOWED_FIELDS := ["max_hp", "shield", "attack", "move_range"]
+static func apply_to_data(data: Dictionary, override_data: Dictionary) -> Dictionary
+static func apply_to_definitions(definitions: Array, unit_name: String, values: Dictionary) -> Dictionary
+static func validate(override_data: Dictionary, known_names: Dictionary) -> Array[String]
+```
+
+- 覆盖键使用标准单位 `name`，同名定义同步修改。
+- HP 至少 1，其余值至少 0；所有值必须为整数。
+- 未知名称、禁止字段、错误类型和越界值必须报错。
+- `apply_to_data` 深拷贝后应用，不能污染原始加载结果。
+- `GameDataLoader.load_game_data()` 在完整校验前加载并应用 `unit_stat_overrides.json`。
+- 当前战斗不热更新；Restart 或重新进入关卡时生效。
+
+### 17.4 程序地图
+
+新增 `ProceduralMapGenerator.generate(spec, seed_override := -1)`：
+
+- 使用局部 `RandomNumberGenerator` 和配置种子，不能调用全局随机函数。
+- 输出必须符合现有地图 `{id,name,width,height,tiles,edges}` 契约。
+- 受保护出生点保持 Plain；不可通行地形和 Cliff 放置后必须保留双方到主战区的连通性。
+- 地形与边界按配置最小配额生成；候选顺序通过种子确定。
+- 相同规格和种子必须深度相等，不同种子应改变至少一个非保护格。
+- `GameDataLoader` 发现地图 JSON 含 `generation` 时生成运行时地图，再交给既有校验器。
+
+### 17.5 第四关
+
+- 目录追加 `stage_004`，前三关顺序和数据不变。
+- 第四关 12x12、4 名玩家、6 名敌人，使用全部现有地形、River 和 Cliff。
+- 不新增或修改单位模板；出生点只引用现有定义。
+- 关卡选择改为 2x2 网格，1100x720 下完整显示四关。
+
+### 17.6 职业标识
+
+- `UnitIconFormatter.class_badge(class_id)` 返回 `sword`、`horse`、`bow` 或空字符串。
+- `BattleBoard` 只根据该结果绘制右上角职业标识；`archer` 同时绘制左下角 `attack_range` 数字。
+- 标识尺寸由 `tile_size` 和头像半径计算，不得使用固定像素布局遮挡主缩写或 HP 条。
+- 未知职业不绘制，不影响单位本体。
+
+### 17.7 测试与文档
+
+- v0.1.3 的 141 项断言全部保留或仅迁移明确中文化的文本预期。
+- 新增覆盖接口、错误配置、中文战斗信息、职业标识映射、程序生成确定性、配额、连通性和第四关集成测试。
+- 总断言不少于 160，最终失败数必须为 0。
+- 图形检查覆盖四关选择、第四关、中文地形/单位/日志和三种职业标识。
+- 更新 README、结构、数据格式、v0.1.4 规则参考、测试记录和最终报告。
+
+### 17.8 实现顺序
+
+```text
+1. 版本规格和上一版快照
+2. 数值覆盖接口、配置和加载接入
+3. 程序地图生成器与第四关数据
+4. 战斗文本中文化
+5. 职业标识绘制与关卡选择布局
+6. 自动化测试和静态检查
+7. Windows Godot 导入、运行和图形检查
+8. 文档同步与试玩启动
+```
+
+### 17.9 数值覆盖接口 不在代码开发中使用
+/home/xu/program-909/software/v1/chess/data/units/unit_stat_overrides.json 
+作为临时数值修改接口，在代码开发中不使用
+
+## 18. v0.1.4 单位显示名称中文化修订
+
+### 18.1 优先级与边界
+
+- 本节覆盖第 16.2、16.5、17.2 和 17.7 节中“百科/战斗保留英文单位名称”的旧规则。
+- 单位 JSON 的 `name` 继续是英文模板一致性键，数值覆盖配置也继续使用英文 `name`。
+- 只修改百科和战斗信息中的显示名称；棋盘缩写仍读取英文 `BattleUnit.display_name`。
+
+### 18.2 唯一名称映射
+
+新增 `UnitNameLocalizer.localized(standard_name)`，统一映射：
+
+```text
+Vanguard -> 先锋
+Archer -> 弓箭手
+Ranger -> 游侠
+Verdant Guard -> 翠绿卫士
+Earth Warden -> 大地守卫
+Raider -> 掠夺者
+Marksman -> 神射手
+Sentry -> 哨兵
+Flamecaster -> 火焰术士
+```
+
+- `Main` 的百科卡片标题、当前/悬停单位标题调用该接口。
+- `BattleController` 的选择、移动、攻击、待机和能力消息调用同一接口。
+- 未知名称返回原值，不能阻止自定义或未来单位显示。
+- 禁止在 Main、BattleController 或测试中复制名称映射。
+
+### 18.3 测试与文档
+
+- 自动化覆盖全部九个名称、未知名称回退、百科中文标题、战斗侧栏和日志中文名称。
+- 自动化确认英文 JSON 名称、数值覆盖英文键和 A/VG/EW 棋盘缩写不变。
+- 重新截图百科与战斗信息，检查中文名称排版。
+- 同步 main_v0.1.4、README、规则参考、结构、数据格式、测试记录和最终报告。
+
+## 19. v0.1.5 增量代码规则
+
+### 19.1 优先级与保护
+
+- v0.1.5 以 `pre_v0.1.5.md` 和 `main_v0.1.5.md` 为最新实施基线。
+- 本节覆盖旧关卡人数、单位基础数值、单位总数、目录布局和百科数量预期；其他非冲突规则继续有效。
+- `/home/xu/program-909/software/v1/chess_v0.1.4` 是只读式上一版快照，不得修改或覆盖。
+- `unit_stat_overrides.json` 继续是外部临时覆盖接口；本版本平衡值写入基础单位 JSON，默认覆盖对象保持为空。
+
+### 19.2 单位定义与敌方级别
+
+- `player_units.json` 包含 8 个唯一名称，新增 Bulwark、Duelist、Longbow。
+- `enemy_units.json` 包含 10 个唯一名称，新增 Skirmisher、Shield Guard、Hunter、Ironclad、Executioner、Siege Archer；Raider 可保留多个一致的实例 ID。
+- 每个敌方定义必须包含 `rank: normal|elite`；玩家定义不要求该字段。
+- `BattleUnit` 增加 `rank` 运行时字段并纳入 `snapshot()`；该字段不参与伤害、移动、AI 或行动次数。
+- 校验器必须拒绝敌方缺失/非法级别，并继续检查同名定义的全部静态字段一致。
+- `UnitNameLocalizer` 是全部 18 个标准名称的唯一中文映射；禁止在 UI、控制器和测试中复制名称映射。
+
+### 19.3 六关与覆盖约束
+
+- 目录固定为 stage_001 至 stage_006，关卡选择使用两列可滚动容器。
+- 每关运行时必须恰好 3 名玩家、6 至 9 名敌人且至少 1 名 `elite`。
+- 六关部署并集必须覆盖全部玩家和敌方标准名称；该约束由自动化测试验证，不在运行时硬编码关卡 ID。
+- map_005 为 10x10 静态地图，map_006 为 14x12 静态地图；动态棋盘继续从运行时宽高计算。
+- stage_004 修改出生后，`map_004.json` 的保护格和连通锚点必须同步，固定种子确定性保持不变。
+
+### 19.4 机遇数据
+
+新增公共定义文件：
+
+```json
+{
+  "opportunities": [
+    {"id": "forest_fruit", "name": "水果", "terrain_ids": ["forest"], "effect": "hp", "amount": 1}
+  ]
+}
+```
+
+地图实例格式：
+
+```json
+{"id": "opp_001", "opportunity_id": "forest_fruit", "position": [3, 4]}
+```
+
+- `GameDataLoader` 总是加载公共定义；静态地图可省略 `opportunities`，等价于空数组。
+- `ProceduralMapGenerator` 必须把规格中的 `opportunities` 深拷贝到生成结果，不能丢失显式地图内容。
+- 校验定义 ID、中文名称、`terrain_ids`、`effect: hp|shield` 和正整数 `amount`。
+- 校验实例唯一 ID、唯一坐标、已知定义、边界内、可通行、定义允许的底层地形且不与出生点重叠。
+
+### 19.5 机遇运行时唯一实现
+
+新增 `BattleOpportunityState`：
+
+```gdscript
+func setup(definition_data: Dictionary, map_data: Dictionary) -> void
+func apply_path(unit: BattleUnit, path: Array) -> Array[Dictionary]
+func has_at(pos: Vector2i) -> bool
+func remaining_count() -> int
+```
+
+- 内部按 `Vector2i` 保存未消耗实例；每次 `start_new_battle()` 创建新状态。
+- `apply_path()` 跳过路径索引 0，从索引 1 开始按顺序处理；触发前从可用集合移除。
+- `hp` 使用 `mini(current_hp + amount, max_hp)`；`shield` 直接增加当前护盾。
+- 事件必须包含实例/定义 ID、中文名、单位 ID、位置、效果类型、请求量、实际量及前后值。
+- 玩家控制器和 EnemyAI 都调用该状态；UI 不直接修改或获知未触发机遇位置。
+- EnemyAI 的 `take_turn()` 增加可选机遇状态参数；移动事件后按路径顺序追加机遇事件，再处理落点元素能力与攻击。
+- `BattleController.last_action` 的移动对象增加 `opportunities` 数组；日志逐条记录机遇后再记录移动总结。
+
+### 19.6 UI 与中文文本
+
+- `Main` 增加 `RANK_TEXT := {normal: 普通, elite: 精英}`。
+- 敌方百科卡和战斗选中/悬停信息显示中文级别；己方不显示空级别。
+- 机遇日志格式包含中文单位名、机遇名和 `HP/护盾 before -> after`；地图、悬停和棋盘不显示未触发机遇。
+- Encyclopedia 导航、关卡名和战斗命令继续使用英文，棋盘缩写继续基于英文标准名。
+
+### 19.7 测试义务
+
+- v0.1.4 的 196 项断言保留或只迁移明确改变的数值、人数、目录和百科数量。
+- 覆盖 18 个名称中文映射、敌方级别校验与中文显示、基础数值表和同名 Raider 一致性。
+- 六关逐关验证数据、尺寸、3 对 6-9、精英存在、部署并集和新地图可启动。
+- 机遇覆盖玩家/AI、路径中间格、终点、多实例、HP 上限、满 HP 消耗、护盾、一次性和 Restart。
+- 完整断言不少于 240，最终失败为 0。
+- 图形检查覆盖六关选择首尾、新地图、双方完整百科和机遇中文日志。
+
+### 19.8 实现顺序
+
+```text
+1. 版本、单位数值、级别与中文名称
+2. 机遇定义、地图实例、加载和校验
+3. 机遇运行时状态与玩家/AI 接入
+4. 六关数据、新地图和程序地图保护规则
+5. 六关选择、百科与战斗级别 UI
+6. 自动化、导入、运行和图形检查
+7. README、规则、结构、数据、测试和最终报告
+8. 启动编辑器与游戏，交给人类试玩评价
+```
+
+### 19.9 技术验证结果
+
+- 六关数据、8 种己方、10 种敌方、18 个中文名称和普通/精英分层均通过校验。
+- 四类机遇的路径中间格/终点、双方触发、HP 上限、护盾、一次性和 Restart 行为均通过回归。
+- Windows Godot 4.7.2 导入退出码 0；最终自动化为 `263 passed, 0 failed`。
+- 七张 1100x720 图形截图已检查；六关滚动选择、10x10/14x12 新地图、双方百科、中文级别和机遇日志无裁切或重叠。
+- 独立 EXE 因缺少 Godot 4.7.2 Windows Export Templates 未生成；Godot 编辑器运行不受影响。

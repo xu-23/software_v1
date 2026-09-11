@@ -7,6 +7,7 @@ const UNIT_TYPE_TEXT := {"melee": "近战", "ranged": "远程"}
 const CLASS_TEXT := {"soldier": "战士", "archer": "弓手", "raider": "掠夺者"}
 const ATTRIBUTE_TEXT := {"none": "无", "wood": "木", "fire": "火", "earth": "土"}
 const TEAM_TEXT := {"player": "玩家", "enemy": "敌方"}
+const RANK_TEXT := {"normal": "普通", "elite": "精英"}
 const TERRAIN_TEXT := {"plain": "平地", "forest": "森林", "hill": "丘陵", "swamp": "沼泽", "water": "水域", "mountain": "山地"}
 const RESULT_TEXT := {"victory": "胜利", "defeat": "失败"}
 
@@ -14,6 +15,7 @@ var controller: BattleController
 var board: BattleBoard
 var turn_label: Label
 var level_select_view: Control
+var level_scroll: ScrollContainer
 var battle_view: Control
 var encyclopedia_view: Control
 var encyclopedia_tabs: TabContainer
@@ -132,13 +134,17 @@ func _build_level_select(parent: Control) -> void:
 		level_select_view.add_child(error_label)
 		return
 
+	level_scroll = ScrollContainer.new()
+	level_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	level_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	level_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	level_select_view.add_child(level_scroll)
 	var stage_grid := GridContainer.new()
 	stage_grid.columns = 2
 	stage_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	stage_grid.add_theme_constant_override("h_separation", 18)
 	stage_grid.add_theme_constant_override("v_separation", 10)
-	level_select_view.add_child(stage_grid)
+	level_scroll.add_child(stage_grid)
 	for entry in catalog.chapters:
 		stage_grid.add_child(_build_level_card(entry))
 
@@ -354,7 +360,10 @@ func _build_encyclopedia_card(definition: Dictionary, abilities_by_id: Dictionar
 	name_label.add_theme_font_size_override("font_size", 20)
 	details.add_child(name_label)
 	var type_label := Label.new()
-	type_label.text = "%s  |  %s" % [_translated_value(UNIT_TYPE_TEXT, str(definition.unit_type)), _translated_value(CLASS_TEXT, str(definition.class_id))]
+	var type_parts := [_translated_value(UNIT_TYPE_TEXT, str(definition.unit_type)), _translated_value(CLASS_TEXT, str(definition.class_id))]
+	if str(definition.team) == "enemy":
+		type_parts.append("级别 %s" % _translated_value(RANK_TEXT, str(definition.get("rank", ""))))
+	type_label.text = "  |  ".join(type_parts)
 	type_label.add_theme_color_override("font_color", Color("#9eb6b0"))
 	details.add_child(type_label)
 	var stats := Label.new()
@@ -453,7 +462,8 @@ func _show_unit_or_summary(unit: BattleUnit) -> void:
 		unit_name_label.text = UnitNameLocalizer.localized(unit.display_name)
 		var attribute_text := _translated_value(ATTRIBUTE_TEXT, unit.special_attribute)
 		var ability_text := "无" if unit.ability_name.is_empty() else unit.ability_name
-		unit_stats_label.text = "类型  %-8s  HP      %d / %d\n护盾  %-8d  攻击    %d\n移动  %d / %-5d  已消耗  %d\n射程  %-8d  坐标    (%d, %d)\n特殊属性  %s\n能力      %s" % [_translated_value(UNIT_TYPE_TEXT, unit.unit_type), unit.current_hp, unit.max_hp, unit.current_shield, unit.attack, unit.remaining_move_points, unit.move_range, unit.move_spent_this_turn, unit.attack_range, unit.grid_pos.x, unit.grid_pos.y, attribute_text, ability_text]
+		var rank_line := "\n级别      %s" % _translated_value(RANK_TEXT, unit.rank) if unit.team == "enemy" else ""
+		unit_stats_label.text = "类型  %-8s  HP      %d / %d\n护盾  %-8d  攻击    %d\n移动  %d / %-5d  已消耗  %d\n射程  %-8d  坐标    (%d, %d)\n特殊属性  %s\n能力      %s%s" % [_translated_value(UNIT_TYPE_TEXT, unit.unit_type), unit.current_hp, unit.max_hp, unit.current_shield, unit.attack, unit.remaining_move_points, unit.move_range, unit.move_spent_this_turn, unit.attack_range, unit.grid_pos.x, unit.grid_pos.y, attribute_text, ability_text, rank_line]
 		var terrain := controller.grid.get_terrain(unit.grid_pos)
 		terrain_label.text = "%s  |  高度 %d" % [_terrain_name(terrain), int(terrain.height)]
 
@@ -470,7 +480,8 @@ func _show_hovered_cell(pos: Vector2i) -> void:
 		unit_stats_label.text = "地形      %s\n高度      %d\n移动消耗  %s\n状态      %s" % [_terrain_name(terrain), int(terrain.height), move_text, passability]
 	else:
 		unit_name_label.text = UnitNameLocalizer.localized(unit.display_name)
-		unit_stats_label.text = "阵营  %s\n类型  %s\nHP    %d / %d\n护盾  %d\n攻击  %d\n移动  %d / %d\n射程  %d\n坐标  (%d, %d)" % [_translated_value(TEAM_TEXT, unit.team), _translated_value(UNIT_TYPE_TEXT, unit.unit_type), unit.current_hp, unit.max_hp, unit.current_shield, unit.attack, unit.remaining_move_points, unit.move_range, unit.attack_range, unit.grid_pos.x, unit.grid_pos.y]
+		var rank_line := "\n级别  %s" % _translated_value(RANK_TEXT, unit.rank) if unit.team == "enemy" else ""
+		unit_stats_label.text = "阵营  %s%s\n类型  %s\nHP    %d / %d\n护盾  %d\n攻击  %d\n移动  %d / %d\n射程  %d\n坐标  (%d, %d)" % [_translated_value(TEAM_TEXT, unit.team), rank_line, _translated_value(UNIT_TYPE_TEXT, unit.unit_type), unit.current_hp, unit.max_hp, unit.current_shield, unit.attack, unit.remaining_move_points, unit.move_range, unit.attack_range, unit.grid_pos.x, unit.grid_pos.y]
 	var details := "%s  |  高度 %d" % [_terrain_name(terrain), int(terrain.height)]
 	var selected := controller.selected_unit()
 	if selected != null and controller.movement_data.get("costs", {}).has(pos) and pos != selected.grid_pos:

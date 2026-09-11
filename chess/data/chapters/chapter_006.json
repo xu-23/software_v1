@@ -1,0 +1,23 @@
+{
+  "id": "stage_006",
+  "name": "Iron Mire",
+  "map_id": "map_006",
+  "player_spawns": {
+    "player_003": [1, 11],
+    "player_006": [6, 11],
+    "player_007": [12, 11]
+  },
+  "enemy_spawns": {
+    "enemy_001": [1, 0],
+    "enemy_002": [3, 1],
+    "enemy_004": [5, 0],
+    "enemy_003": [7, 1],
+    "enemy_006": [9, 0],
+    "enemy_007": [11, 1],
+    "enemy_008": [13, 0],
+    "enemy_009": [4, 0],
+    "enemy_012": [12, 1]
+  },
+  "win_condition": "defeat_all_enemies",
+  "lose_condition": "all_players_defeated"
+}

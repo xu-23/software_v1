@@ -5,12 +5,12 @@
       "name": "First Contact",
       "difficulty": "Easy",
       "map_size": [10, 10],
-      "player_count": 2,
-      "enemy_count": 3,
+      "player_count": 3,
+      "enemy_count": 6,
       "terrains": ["Plain", "Forest", "Mountain"],
       "map_path": "res://data/maps/map_001.json",
       "chapter_path": "res://data/chapters/chapter_001.json",
-      "summary": "A compact battlefield for the core combat rules."
+      "summary": "A compact formation battle against mixed normal troops and an elite sentry."
     },
     {
       "id": "stage_002",
@@ -18,11 +18,11 @@
       "difficulty": "Normal",
       "map_size": [12, 12],
       "player_count": 3,
-      "enemy_count": 5,
+      "enemy_count": 7,
       "terrains": ["Plain", "Forest", "Swamp", "Water", "Mountain"],
       "map_path": "res://data/maps/map_002.json",
       "chapter_path": "res://data/chapters/chapter_002.json",
-      "summary": "Use high ground and limited movement to cross the wetlands."
+      "summary": "Use mobility and forest cover against layered wetland defenders."
     },
     {
       "id": "stage_003",
@@ -30,23 +30,47 @@
       "difficulty": "Hard",
       "map_size": [12, 12],
       "player_count": 3,
-      "enemy_count": 5,
+      "enemy_count": 7,
       "terrains": ["Plain", "Forest", "Hill", "Water", "Mountain"],
       "map_path": "res://data/maps/map_003.json",
       "chapter_path": "res://data/chapters/chapter_003.json",
-      "summary": "Control forest and hill positions while elemental abilities reshape armor and damage."
+      "summary": "Control forest and hill opportunities while elite ranged units hold the crossing."
     },
     {
       "id": "stage_004",
       "name": "Shattered Frontier",
       "difficulty": "Very Hard",
       "map_size": [12, 12],
-      "player_count": 4,
-      "enemy_count": 6,
+      "player_count": 3,
+      "enemy_count": 8,
       "terrains": ["Plain", "Forest", "Hill", "Swamp", "Water", "Mountain"],
       "map_path": "res://data/maps/map_004.json",
       "chapter_path": "res://data/chapters/chapter_004.json",
-      "summary": "Break through a seeded battlefield packed with difficult terrain and layered boundaries."
+      "summary": "Break through a seeded battlefield defended by an armored elite and a full battle line."
+    },
+    {
+      "id": "stage_005",
+      "name": "Orchard Ambush",
+      "difficulty": "Hard",
+      "map_size": [10, 10],
+      "player_count": 3,
+      "enemy_count": 7,
+      "terrains": ["Plain", "Forest", "Hill", "Swamp", "Water", "Mountain"],
+      "map_path": "res://data/maps/map_005.json",
+      "chapter_path": "res://data/chapters/chapter_005.json",
+      "summary": "Fight through narrow orchard lanes where hidden opportunities reward committed movement."
+    },
+    {
+      "id": "stage_006",
+      "name": "Iron Mire",
+      "difficulty": "Extreme",
+      "map_size": [14, 12],
+      "player_count": 3,
+      "enemy_count": 9,
+      "terrains": ["Plain", "Forest", "Hill", "Swamp", "Water", "Mountain"],
+      "map_path": "res://data/maps/map_006.json",
+      "chapter_path": "res://data/chapters/chapter_006.json",
+      "summary": "Cross a broad iron marsh under pressure from every enemy role."
     }
   ]
 }

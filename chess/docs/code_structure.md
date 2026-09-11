@@ -1,4 +1,4 @@
-# v0.1.4 代码结构
+# v0.1.5 代码结构
 
 ## 入口与界面
 
@@ -6,7 +6,7 @@
 |---|---|
 | `project.godot` | 项目版本、窗口、渲染器和主场景配置 |
 | `scenes/main/Main.tscn` | 唯一运行入口 |
-| `scripts/ui/main.gd` | 2x2 关卡选择、战斗 HUD、中文战斗信息、Menu 和单位图鉴 |
+| `scripts/ui/main.gd` | 六关可滚动选择、战斗 HUD、中文级别/战斗信息、Menu 和单位图鉴 |
 | `scripts/ui/battle_board.gd` | 动态绘制地形、边界、范围、路径、单位、职业角标和远程射程数字 |
 | `scripts/ui/unit_icon_formatter.gd` | 名称缩写与职业标识类型映射 |
 | `scripts/ui/unit_name_localizer.gd` | 英文标准单位名到中文显示名称的唯一映射 |
@@ -17,9 +17,10 @@
 
 | 文件 | 主要接口 | 职责 |
 |---|---|---|
-| `scripts/battle/battle_controller.gd` | `start_new_battle`、`stop_battle`、`select_at`、`click_at`、`request_attack`、`end_player_turn` | 关卡加载、状态机、中文日志、能力接入、输入锁和敌方回合编排 |
+| `scripts/battle/battle_controller.gd` | `start_new_battle`、`stop_battle`、`select_at`、`click_at`、`request_attack`、`end_player_turn` | 关卡加载、状态机、中文日志、能力/机遇接入、输入锁和敌方回合编排 |
+| `scripts/battle/opportunity_state.gd` | `setup`、`apply_path`、`has_at`、`remaining_count` | 隐藏机遇实例、逐格路径触发、一次性消耗及 HP/护盾结算 |
 | `scripts/battle/victory_checker.gd` | `check` | 根据双方存活单位判断胜负 |
-| `scripts/ai/enemy_ai.gd` | `take_turn` | 目标选择、合法攻击位置寻路、绕障移动、攻击和 AI 能力触发 |
+| `scripts/ai/enemy_ai.gd` | `take_turn` | 目标选择、合法攻击位置寻路、绕障移动、攻击、能力及路径机遇触发 |
 
 `start_new_battle(chapter_id, stat_overrides := null)` 默认读取磁盘覆盖配置，也允许代码直接传入相同结构。控制器维护最近 8 条 `battle_log`、`last_action` 和 `battle_generation`；generation 防止 Restart 或 Levels 前的异步任务修改新状态。
 
@@ -37,8 +38,8 @@
 
 | 文件 | 主要接口 | 职责 |
 |---|---|---|
-| `scripts/data/data_loader.gd` | `load_game_data` | 加载目录、公共定义、单位覆盖、静态或程序地图和关卡 |
-| `scripts/data/data_validator.gd` | `validate`、`validate_catalog` | 校验目录、地图、出生点、能力引用、同名模板和生成错误 |
+| `scripts/data/data_loader.gd` | `load_game_data` | 加载目录、公共定义、机遇、单位覆盖、静态或程序地图和关卡 |
+| `scripts/data/data_validator.gd` | `validate`、`validate_catalog` | 校验目录、地图、出生点、敌方级别、机遇、能力引用、同名模板和生成错误 |
 | `scripts/data/unit_stat_overrides.gd` | `apply_to_data`、`apply_to_definitions`、`validate` | 只覆盖 HP、护盾、攻击、移动并拒绝固定字段变更 |
 | `scripts/data/procedural_map_generator.gd` | `generate`、`anchors_connected` | 局部随机数、配额放置、出生保护和连通性保持 |
 | `scripts/data/unit_definition_catalog.gd` | `unique_by_name` | 生成按名称去重排序的图鉴定义 |
@@ -54,6 +55,7 @@ Main UI -> BattleController
                    -> ProceduralMapGenerator
               -> GameDataValidator
               -> BattleGrid / BattleUnitRegistry / BattleUnit
+              -> BattleOpportunityState
               -> MovementCalculator / AttackRangeCalculator
               -> SpecialAbilityResolver / DamageCalculator
               -> EnemyAI / VictoryChecker
@@ -65,8 +67,10 @@ BattleBoard -> UnitIconFormatter（继续读取英文标准名）
 
 ## 扩展约束
 
-- 普通内容优先通过 JSON 扩展；身份和规则字段保留在单位定义中，平衡数值写入覆盖文件。
+- 普通内容优先通过 JSON 扩展；身份、规则字段和版本基础平衡值保留在单位定义中。
+- v0.1.5 基础平衡值写入单位定义；`unit_stat_overrides.json` 仅用于运行时外部调整。
 - `name` 是单位模板一致性键；同名定义的静态字段及覆盖结果必须一致。
 - 玩家与 AI 不得复制能力、攻击、移动或地形规则。
+- 玩家与 AI 必须向 `BattleOpportunityState` 提交实际路径，UI 不得读取未触发机遇位置。
 - 程序地图必须使用局部随机数、明确种子、受保护出生点和连通性测试。
 - 新关卡需增加目录、地图规格、出生点、数据校验和自动化覆盖。

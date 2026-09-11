@@ -1,0 +1,21 @@
+{
+  "id": "stage_005",
+  "name": "Orchard Ambush",
+  "map_id": "map_005",
+  "player_spawns": {
+    "player_002": [1, 9],
+    "player_005": [4, 9],
+    "player_007": [8, 9]
+  },
+  "enemy_spawns": {
+    "enemy_001": [1, 0],
+    "enemy_002": [4, 0],
+    "enemy_003": [7, 1],
+    "enemy_004": [8, 0],
+    "enemy_007": [6, 0],
+    "enemy_008": [2, 1],
+    "enemy_011": [9, 1]
+  },
+  "win_condition": "defeat_all_enemies",
+  "lose_condition": "all_players_defeated"
+}

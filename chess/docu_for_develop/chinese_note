@@ -1,0 +1,23 @@
+实际运行文本
+1. [unit_name_localizer.gd (line 5)](/home/xu/program-909/software/v1/chess/scripts/ui/unit_name_localizer.gd)
+   集中保存单位名称翻译，例如：
+   - Vanguard → 先锋
+   - Archer → 弓箭手
+   - Flamecaster → 火焰术士
+2. [main.gd (line 6)](/home/xu/program-909/software/v1/chess/scripts/ui/main.gd)
+   保存战斗界面和百科界面的通用中文翻译，包括：
+   - 单位类型、属性、阵营
+   - 地形名称
+   - 胜负结果
+   - 单位详情、移动路径、战斗日志等界面文字
+3. [battle_controller.gd (line 57)](/home/xu/program-909/software/v1/chess/scripts/battle/battle_controller.gd)
+   保存战斗流程中的中文提示和日志，包括：
+   - 回合提示
+   - 选择、移动、攻击、等待
+   - 无效目标和超出射程提示
+   - 伤害、技能、胜利和失败日志
+4. [ability_defs.json (line 3)](/home/xu/program-909/software/v1/chess/data/abilities/ability_defs.json)
+   保存技能名称和技能描述的中文文本，例如：
+   - 生生不息
+   - 火烧联营
+   - 万物之源

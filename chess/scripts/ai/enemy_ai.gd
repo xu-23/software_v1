@@ -4,7 +4,7 @@ extends RefCounted
 const UNREACHABLE := 1000000
 
 
-static func take_turn(enemy: BattleUnit, grid: BattleGrid, registry: BattleUnitRegistry) -> Array[Dictionary]:
+static func take_turn(enemy: BattleUnit, grid: BattleGrid, registry: BattleUnitRegistry, opportunity_state: BattleOpportunityState = null) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	if enemy == null or enemy.is_dead:
 		return events
@@ -24,7 +24,11 @@ static func take_turn(enemy: BattleUnit, grid: BattleGrid, registry: BattleUnitR
 			enemy.has_moved = true
 			enemy.remaining_move_points = maxi(enemy.remaining_move_points - move_cost, 0)
 			enemy.move_spent_this_turn += move_cost
-			events.append({"type": "move", "unit_id": enemy.id, "from": start, "to": destination, "path": path, "cost": move_cost, "remaining": enemy.remaining_move_points})
+			var opportunity_events: Array[Dictionary] = []
+			if opportunity_state != null:
+				opportunity_events = opportunity_state.apply_path(enemy, path)
+			events.append({"type": "move", "unit_id": enemy.id, "from": start, "to": destination, "path": path, "cost": move_cost, "remaining": enemy.remaining_move_points, "opportunities": opportunity_events})
+			events.append_array(opportunity_events)
 			var ability_event := SpecialAbilityResolver.apply_terrain_entry(enemy, grid.get_terrain_id(destination))
 			if not ability_event.is_empty():
 				events.append(ability_event)

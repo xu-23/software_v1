@@ -5,14 +5,16 @@
   "player_spawns": {
     "player_004": [1, 11],
     "player_005": [4, 11],
-    "player_003": [6, 11]
+    "player_008": [6, 11]
   },
   "enemy_spawns": {
     "enemy_001": [10, 0],
-    "enemy_002": [11, 2],
-    "enemy_003": [9, 3],
+    "enemy_004": [11, 2],
     "enemy_005": [8, 1],
-    "enemy_006": [10, 5]
+    "enemy_006": [10, 5],
+    "enemy_009": [9, 3],
+    "enemy_011": [11, 0],
+    "enemy_012": [7, 0]
   },
   "win_condition": "defeat_all_enemies",
   "lose_condition": "all_players_defeated"

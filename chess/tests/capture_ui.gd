@@ -17,58 +17,62 @@ func _capture() -> void:
 	await create_timer(0.15).timeout
 	await process_frame
 	var main_scene := current_scene
-	if not _save("res://docs/v0.1.4_level_select.png"):
+	if not _save("res://docs/v0.1.5_level_select_top.png"):
+		quit(1)
+		return
+	main_scene.level_scroll.scroll_vertical = 100000
+	await process_frame
+	await process_frame
+	if not _save("res://docs/v0.1.5_level_select_bottom.png"):
 		quit(1)
 		return
 
-	main_scene.start_level("stage_004")
-	main_scene.controller.select_at(Vector2i(1, 11))
+	main_scene.start_level("stage_005")
+	main_scene.controller.select_at(Vector2i(1, 9))
 	main_scene.board._set_hovered_pos(Vector2i(-1, -1))
 	await process_frame
 	await process_frame
 	await process_frame
 	await process_frame
-	if not _save("res://docs/v0.1.4_stage_004.png"):
+	if not _save("res://docs/v0.1.5_stage_005.png"):
+		quit(1)
+		return
+
+	main_scene.start_level("stage_006")
+	main_scene.controller.select_at(Vector2i(6, 11))
+	main_scene.board._set_hovered_pos(Vector2i(12, 1))
+	await process_frame
+	await process_frame
+	await process_frame
+	if not _save("res://docs/v0.1.5_stage_006.png"):
 		quit(1)
 		return
 
 	main_scene.show_encyclopedia()
 	await process_frame
 	await process_frame
-	if not _save("res://docs/v0.1.4_encyclopedia_allies_zh.png"):
+	if not _save("res://docs/v0.1.5_encyclopedia_allies.png"):
 		quit(1)
 		return
 	main_scene.encyclopedia_tabs.current_tab = 1
 	await process_frame
 	await process_frame
-	if not _save("res://docs/v0.1.4_encyclopedia_enemies_zh.png"):
+	if not _save("res://docs/v0.1.5_encyclopedia_enemies.png"):
 		quit(1)
 		return
 	main_scene.close_encyclopedia()
 
-	main_scene.start_level("stage_001")
-	main_scene.controller.select_at(Vector2i(1, 8))
-	main_scene.controller.click_at(Vector2i(1, 7))
-	main_scene.controller.registry.get_unit("enemy_001").grid_pos = Vector2i(1, 6)
-	main_scene.controller.request_attack()
-	main_scene.controller.attack_selected("enemy_001")
-	main_scene.board._set_hovered_pos(Vector2i(1, 6))
+	main_scene.start_level("stage_003")
+	main_scene.controller.select_at(Vector2i(1, 11))
+	main_scene.controller.click_at(Vector2i(2, 10))
+	main_scene.board._set_hovered_pos(Vector2i(2, 10))
 	await process_frame
 	await process_frame
 	await process_frame
-	if not _save("res://docs/v0.1.4_unit_and_log_zh.png"):
+	if not _save("res://docs/v0.1.5_opportunity_log.png"):
 		quit(1)
 		return
-
-	main_scene.start_level("stage_002")
-	main_scene.board._set_hovered_pos(Vector2i(4, 5))
-	await process_frame
-	await process_frame
-	await process_frame
-	if not _save("res://docs/v0.1.4_terrain_zh.png"):
-		quit(1)
-		return
-	print("UI CAPTURE: level select, stage 4, encyclopedia names, Chinese unit/log, and Chinese terrain saved")
+	print("UI CAPTURE: six-level select, stages 5/6, expanded encyclopedia, rank, and opportunity log saved")
 	quit(0)
 
 

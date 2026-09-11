@@ -52,6 +52,7 @@ static func generate(spec: Dictionary, seed_override: int = -1) -> Dictionary:
 		"height": height,
 		"tiles": tiles,
 		"edges": edges,
+		"opportunities": spec.get("opportunities", []).duplicate(true),
 		"generation_seed": seed_value,
 		"generation_requirements": generation.duplicate(true),
 		"generation_errors": errors
